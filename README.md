@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # EduShield — AI-Powered Education Insurance Platform
 ### Final Year B.Tech CSE Project • Inspired by Guidewire PolicyCenter & ClaimCenter
 
@@ -64,3 +65,6 @@ Use the **Role Switcher** widget in the top navigation bar or the instant login 
 
 ## 📑 Detailed Documentation
 See **[`DOCUMENTATION.md`](./DOCUMENTATION.md)** for the complete 18-section technical report, database schema, mathematical formulas, and all **25 Viva Voce Questions and Detailed Answers**.
+=======
+# EduShield
+>>>>>>> 5a3c9cff99b6090a3e7d381b1314357d971453d2
