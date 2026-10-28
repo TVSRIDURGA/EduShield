@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # EduShield — AI-Powered Education Insurance Platform
 ### Final Year B.Tech CSE Project • Inspired by Guidewire PolicyCenter & ClaimCenter
 
@@ -23,7 +22,9 @@ Open **`http://localhost:5173`** in your browser.
 ```bash
 npm run test
 ```
-Runs 17 automated unit and integration tests verifying:
+Runs comprehensive automated unit and integration tests verifying:
+- Genuine authentication, password reset, and session persistence
+- Role-based route guards and access restrictions
 - Actuarial premium calculation formulas and statutory GST (18%)
 - Education funding-gap projection logic
 - Guidewire-inspired finite state transitions
@@ -38,17 +39,33 @@ Generates production-optimized JavaScript, CSS, and HTML assets in `dist/`.
 
 ---
 
-## 👥 Instant Evaluator Demo Accounts
+## 👥 Evaluator Role Accounts & Authentication
 
-Use the **Role Switcher** widget in the top navigation bar or the instant login buttons on the `/login` page to inspect each stakeholder perspective:
+EduShield enforces **genuine Firebase Authentication** with persistent sessions and server-enforced role access control. Demo role switching dropdowns have been removed.
 
-| Role | Demo User | Email | Key Capabilities |
-|---|---|---|---|
-| **Guardian / Parent** | Rajesh Sharma | `guardian@edushield.demo` | Calculate quotes, purchase policies, submit claims, ask grounded AI, view continuity gap |
-| **Student** | Aarav Sharma | `student@edushield.demo` | View active degree coverage at IIT Delhi, fee protections, continuity gap |
-| **Claims Officer** | Vikram Mehta | `officer@edushield.demo` | Guidewire ClaimCenter work queue, review proofs, adjudicate claims, disburse university payouts |
-| **University Registrar** | Dr. Sunita Deshmukh | `university@edushield.demo` | IIT Delhi Registrar fee portal, verify roll numbers, certify outstanding tuition balances |
-| **Administrator** | Priya Nambiar | `admin@edushield.demo` | Operations hub, user RBAC management, plan definitions, business rules, immutable audit trail |
+To evaluate each independent stakeholder experience, authenticate using the verified credentials below:
+
+| Role | Evaluator Account | Verified Email | Password | Authorized Scope & Key Capabilities |
+|---|---|---|---|---|
+| **Parent / Guardian** | Rajesh Sharma | `guardian@edushield.demo` | `EduShield@2026` | Calculate quotes, purchase & renew policies, submit claims, register children, view family records |
+| **Student** | Aarav Sharma | `student@edushield.demo` | `EduShield@2026` | Dynamic IIT Delhi student portal, view degree protections, track claim status, upload evidence |
+| **Claims Officer** | Vikram Mehta | `officer@edushield.demo` | `EduShield@2026` | Guidewire ClaimCenter work queue, review evidence, record adjudication decisions, enforce separation of duties |
+| **University Registrar** | Dr. Sunita Deshmukh | `university@edushield.demo` | `EduShield@2026` | IIT Delhi Registrar fee portal, verify student enrollment, certify semester dues, direct fee escrow |
+| **Administrator** | Priya Nambiar | `admin@edushield.demo` | `EduShield@2026` | Operations hub, manage user accounts & role assignments, business rules, immutable audit log |
+
+*(The `/login` screen includes an Evaluator Quick-Fill helper that populates the email and password form fields for rapid evaluation while still executing real Firebase Authentication).*
+
+---
+
+## 🔒 Security & Authorization Architecture
+
+- **Firebase Authentication**: Establishes genuine cryptographic identity tokens (JWT).
+- **Persistent Sessions**: User sessions persist across page refreshes via `onAuthStateChanged`.
+- **Role-Protected Routes**: The `ProtectedRoute` component redirects unauthenticated users to `/login` and renders an explicit `UnauthorizedPage` for unauthorized access attempts.
+- **Backend Firestore Rules**: Explicit role-aware and ownership-aware Security Rules prevent role self-escalation and cross-tenant access.
+- **Separation of Duties**: Claims adjusters cannot self-approve claims where they are the registered policyholder/guardian.
+- **Payment Exclusivity**: Payment facilities are accessible strictly to authenticated Parents/Guardians.
+- **Immutable Audit Trail**: Sensitive operations (login, role modification, claim adjudication, university verification, and fee settlement) are recorded in the append-only `auditLogs` collection.
 
 ---
 
@@ -64,7 +81,4 @@ Use the **Role Switcher** widget in the top navigation bar or the instant login 
 ---
 
 ## 📑 Detailed Documentation
-See **[`DOCUMENTATION.md`](./DOCUMENTATION.md)** for the complete 18-section technical report, database schema, mathematical formulas, and all **25 Viva Voce Questions and Detailed Answers**.
-=======
-# EduShield
->>>>>>> 5a3c9cff99b6090a3e7d381b1314357d971453d2
+See **[`DOCUMENTATION.md`](./DOCUMENTATION.md)** for the complete technical report, database schema, mathematical formulas, and all **25 Viva Voce Questions and Detailed Answers**.

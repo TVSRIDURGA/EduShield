@@ -8,8 +8,11 @@ import {
   Sparkles, 
   CheckCircle2, 
   Download,
-  AlertTriangle
+  AlertTriangle,
+  Lock,
+  ArrowLeft
 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import { PoliciesRepo } from '../../repositories/firestoreRepo';
 import { EducationPolicy } from '../../models/insurance';
 import { formatINR, formatDate } from '../../utils/businessRules';
@@ -17,6 +20,7 @@ import { Badge } from '../../components/common/Badge';
 
 export const PolicyDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { user, role } = useAuth();
   const [policy, setPolicy] = useState<EducationPolicy | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -50,6 +54,39 @@ export const PolicyDetailPage: React.FC = () => {
     );
   }
 
+  // Authorization Check
+  const isDemoGuardian = user?.email === 'guardian@edushield.demo';
+  const isDemoStudent = user?.email === 'student@edushield.demo';
+  const isDemoUniv = user?.email === 'university@edushield.demo';
+
+  const isAuthorized = 
+    role === 'admin' ||
+    role === 'claims_officer' ||
+    (role === 'guardian' && (policy.guardianId === user?.id || (isDemoGuardian && policy.guardianId === 'usr_guardian_1'))) ||
+    (role === 'student' && (policy.studentId === user?.id || policy.studentName.toLowerCase() === user?.displayName.toLowerCase() || (isDemoStudent && policy.id === 'pol_active_aarav'))) ||
+    (role === 'university' && (policy.universityId === user?.universityId || (isDemoUniv && policy.universityId === 'univ_iitd')));
+
+  if (!isAuthorized) {
+    return (
+      <div className="max-w-md mx-auto py-16 px-4 text-center space-y-4">
+        <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center mx-auto">
+          <Lock className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900">Access Denied</h2>
+        <p className="text-xs text-slate-500">
+          You do not possess authorized credentials to inspect this education policy certificate. Policies are restricted strictly to the authorized parent, student beneficiary, or assigned claims adjuster.
+        </p>
+        <Link
+          to="/policies"
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-600 text-white font-semibold text-xs"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Return to My Policies</span>
+        </Link>
+      </div>
+    );
+  }
+
   const isWaitingPeriodOver = new Date() >= new Date(policy.waitingPeriodEndsAt);
 
   return (
@@ -72,13 +109,15 @@ export const PolicyDetailPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <Link
-            to="/claims/new"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs shadow-sm transition"
-          >
-            <FileText className="w-4 h-4" />
-            <span>File a Claim</span>
-          </Link>
+          {role === 'guardian' && (
+            <Link
+              to="/claims/new"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs shadow-sm transition"
+            >
+              <FileText className="w-4 h-4" />
+              <span>File a Claim</span>
+            </Link>
+          )}
           <Link
             to="/ai-assistant"
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-50 hover:bg-brand-100 text-brand-700 border border-brand-200 font-semibold text-xs transition"
@@ -99,93 +138,107 @@ export const PolicyDetailPage: React.FC = () => {
           <>
             <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
             <div>
-              <strong>Waiting Period Satisfied:</strong> The initial {policy.waitingPeriodDays}-day waiting period ended on {formatDate(policy.waitingPeriodEndsAt)}. All covered emergency claims are fully active.
+              <span className="font-bold">Initial Waiting Period Completed</span>
+              <p className="text-[11px] text-emerald-700 mt-0.5">
+                The {policy.waitingPeriodDays}-day statutory waiting period elapsed on {formatDate(policy.waitingPeriodEndsAt)}. Full coverage is active.
+              </p>
             </div>
           </>
         ) : (
           <>
             <Clock className="w-5 h-5 text-amber-600 flex-shrink-0" />
             <div>
-              <strong>Active Waiting Period:</strong> Initial policy waiting period ends on {formatDate(policy.waitingPeriodEndsAt)}. Accidental death is covered with zero waiting period.
+              <span className="font-bold">Waiting Period In Progress</span>
+              <p className="text-[11px] text-amber-700 mt-0.5">
+                Initial {policy.waitingPeriodDays}-day waiting period ends on {formatDate(policy.waitingPeriodEndsAt)}. Non-accidental claims subject to waiting clause.
+              </p>
             </div>
           </>
         )}
       </div>
 
-      {/* Policy Details Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 space-y-6">
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-            <h3 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">
-              Policyholder & Student Identification
-            </h3>
-
-            <div className="grid grid-cols-2 gap-4 text-xs">
-              <div>
-                <span className="text-slate-400 font-semibold uppercase">Policyholder / Guardian</span>
-                <div className="font-bold text-slate-900 text-sm mt-0.5">{policy.guardianName}</div>
-                <div className="text-slate-500 mt-0.5">{policy.guardianEmail}</div>
-              </div>
-
-              <div>
-                <span className="text-slate-400 font-semibold uppercase">Insured Student</span>
-                <div className="font-bold text-slate-900 text-sm mt-0.5">{policy.studentName}</div>
-                <div className="text-slate-500 mt-0.5">{policy.universityName}</div>
-              </div>
+      {/* Grid: Policy Specifications */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Insured Student & University */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+          <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-2">
+            Insured Student & University
+          </h3>
+          <div className="space-y-3 text-xs">
+            <div className="flex justify-between">
+              <span className="text-slate-500">Covered Student Beneficiary:</span>
+              <span className="font-bold text-slate-900">{policy.studentName}</span>
             </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-            <h3 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">
-              Covered Benefits & Riders
-            </h3>
-
-            <div className="space-y-3">
-              {policy.benefits.map((b) => (
-                <div key={b.benefitCode} className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-900">{b.name}</span>
-                    <span className="font-bold text-brand-700">{formatINR(b.coverageLimit)}</span>
-                  </div>
-                  <p className="text-slate-600 mt-1">{b.description}</p>
-                </div>
-              ))}
+            <div className="flex justify-between">
+              <span className="text-slate-500">Institution:</span>
+              <span className="font-semibold text-slate-900 text-right">{policy.universityName}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Policyholder / Guardian:</span>
+              <span className="font-semibold text-slate-900">{policy.guardianName}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Payment Transaction Ref:</span>
+              <span className="font-mono text-slate-700">{policy.paymentReference || 'SIM-PAY-PROCESSED'}</span>
             </div>
           </div>
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-            <h3 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">
-              Coverage & Premium
-            </h3>
-
-            <div className="space-y-3 text-xs">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Plan Tier:</span>
-                <span className="font-bold text-slate-900">{policy.planName}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Maximum Limit:</span>
-                <span className="font-bold text-slate-900 text-sm">{formatINR(policy.coverageAmount)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Annual Premium:</span>
-                <span className="font-bold text-brand-700">{formatINR(policy.totalAnnualPremium)}/yr</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Renewal Due Date:</span>
-                <span className="font-medium text-slate-900">{formatDate(policy.renewalDueDate)}</span>
-              </div>
+        {/* Coverage & Premium */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+          <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-2">
+            Coverage & Actuarial Limits
+          </h3>
+          <div className="space-y-3 text-xs">
+            <div className="flex justify-between">
+              <span className="text-slate-500">Total Cover Limit:</span>
+              <span className="text-base font-bold text-brand-700">{formatINR(policy.coverageAmount)}</span>
             </div>
-
-            <div className="pt-3 border-t border-slate-100 text-[11px] text-slate-400">
-              Payment Reference: <br />
-              <code className="text-slate-600 font-mono text-[10px]">{policy.paymentReference || 'SIM-DIRECT'}</code>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Annual Premium:</span>
+              <span className="font-bold text-slate-900">{formatINR(policy.totalAnnualPremium)}/year</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Plan Tier:</span>
+              <span className="font-semibold text-slate-900">{policy.planName}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Renewal Due Date:</span>
+              <span className="font-semibold text-slate-900">{formatDate(policy.renewalDueDate)}</span>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Included Benefits Schedule */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        <h3 className="text-base font-bold text-slate-900 mb-4">
+          Schedule of Covered Benefits & Limits
+        </h3>
+        <div className="space-y-3">
+          {policy.benefits.map((b, idx) => (
+            <div key={idx} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs flex items-center justify-between">
+              <div>
+                <div className="font-bold text-slate-900">{b.name}</div>
+                <div className="text-[11px] text-slate-500 mt-0.5">{b.description}</div>
+              </div>
+              <div className="text-right">
+                <div className="font-bold text-brand-700">{formatINR(b.coverageLimit)}</div>
+                <div className="text-[10px] text-slate-400">Deductible: {formatINR(b.deductible)}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Exclusions */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        <h3 className="text-base font-bold text-slate-900 mb-2">Policy Exclusions</h3>
+        <ul className="list-disc list-inside text-xs text-slate-600 space-y-1">
+          {policy.exclusions.map((ex, idx) => (
+            <li key={idx}>{ex}</li>
+          ))}
+        </ul>
       </div>
     </div>
   );

@@ -67,7 +67,12 @@ export const NewClaimPage: React.FC = () => {
     async function load() {
       try {
         const all = await PoliciesRepo.getAll();
-        const myPolicies = all.filter(p => p.status === 'ACTIVE');
+        const isDemoGuardian = user?.email === 'guardian@edushield.demo';
+        const myPolicies = all.filter(p => p.status === 'ACTIVE' && (
+          p.guardianId === user?.id || 
+          (isDemoGuardian && p.guardianId === 'usr_guardian_1') || 
+          user?.role === 'admin'
+        ));
         setPolicies(myPolicies);
         if (myPolicies.length > 0) {
           setSelectedPolicyId(myPolicies[0].id);

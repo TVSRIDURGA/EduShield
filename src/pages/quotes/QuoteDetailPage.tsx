@@ -21,7 +21,7 @@ import { Alert } from '../../components/common/Alert';
 
 export const QuoteDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const navigate = useNavigate();
 
   const [quote, setQuote] = useState<Quote | null>(null);
@@ -47,7 +47,7 @@ export const QuoteDetailPage: React.FC = () => {
   }, [id]);
 
   const handlePurchase = async () => {
-    if (!quote || !user) return;
+    if (!quote || !user || role !== 'guardian') return;
     setProcessingPayment(true);
     setError(null);
 
@@ -99,7 +99,12 @@ export const QuoteDetailPage: React.FC = () => {
         </div>
 
         <div>
-          {!isAccepted ? (
+          {isAccepted ? (
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Policy Already Bound & Active</span>
+            </div>
+          ) : role === 'guardian' ? (
             <button
               onClick={() => setPaymentModalOpen(true)}
               className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md transition"
@@ -109,9 +114,8 @@ export const QuoteDetailPage: React.FC = () => {
               <ArrowRight className="w-4 h-4" />
             </button>
           ) : (
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold">
-              <CheckCircle2 className="w-4 h-4" />
-              <span>Policy Already Bound & Active</span>
+            <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 text-slate-600 border border-slate-200 text-xs font-medium">
+              <span>View-only: Payments reserved for Parent / Guardian</span>
             </div>
           )}
         </div>

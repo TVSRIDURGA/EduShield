@@ -59,7 +59,12 @@ export const ContinuityPage: React.FC = () => {
           PoliciesRepo.getAll(),
           StudentsRepo.getAll()
         ]);
-        const myPol = policies.find(p => p.status === 'ACTIVE');
+        const isDemoGuardian = user?.email === 'guardian@edushield.demo';
+        const myPol = policies.find(p => p.status === 'ACTIVE' && (
+          p.guardianId === user?.id || 
+          p.studentId === user?.id || 
+          (isDemoGuardian && p.guardianId === 'usr_guardian_1')
+        )) || policies.find(p => p.status === 'ACTIVE');
         if (myPol) {
           setActiveInsuranceCoverage(myPol.coverageAmount);
           setStudentName(myPol.studentName);

@@ -4,10 +4,12 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
+import { ProtectedRoute } from './components/common/ProtectedRoute';
 
 // Pages
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
+import { UnauthorizedPage } from './pages/auth/UnauthorizedPage';
 import { DashboardPage } from './pages/dashboard/DashboardPage';
 import { NewQuotePage } from './pages/quotes/NewQuotePage';
 import { QuoteDetailPage } from './pages/quotes/QuoteDetailPage';
@@ -25,7 +27,7 @@ import { UsersPage } from './pages/admin/UsersPage';
 import { PlansPage } from './pages/admin/PlansPage';
 import { RulesPage } from './pages/admin/RulesPage';
 
-// Protected layout wrapper
+// Layout wrapper for authenticated and general pages
 const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
@@ -44,43 +46,158 @@ export const App: React.FC = () => {
       <NotificationProvider>
         <BrowserRouter>
           <Routes>
-            {/* Public Auth routes */}
+            {/* Public Authentication routes */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/unauthorized" element={<AppLayout><UnauthorizedPage /></AppLayout>} />
 
-            {/* Application pages wrapped in Layout */}
+            {/* Root redirect */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<AppLayout><DashboardPage /></AppLayout>} />
 
-            {/* Quotes */}
+            {/* Role-Aware Dashboard */}
+            <Route 
+              path="/dashboard" 
+              element={
+                <ProtectedRoute>
+                  <AppLayout><DashboardPage /></AppLayout>
+                </ProtectedRoute>
+              } 
+            />
+
+            {/* Quotes (Guards: Guardian & Admin) */}
             <Route path="/quotes" element={<Navigate to="/quotes/new" replace />} />
-            <Route path="/quotes/new" element={<AppLayout><NewQuotePage /></AppLayout>} />
-            <Route path="/quotes/:id" element={<AppLayout><QuoteDetailPage /></AppLayout>} />
+            <Route 
+              path="/quotes/new" 
+              element={
+                <ProtectedRoute allowedRoles={['guardian', 'admin']}>
+                  <AppLayout><NewQuotePage /></AppLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/quotes/:id" 
+              element={
+                <ProtectedRoute allowedRoles={['guardian', 'claims_officer', 'admin']}>
+                  <AppLayout><QuoteDetailPage /></AppLayout>
+                </ProtectedRoute>
+              } 
+            />
 
-            {/* Policies */}
-            <Route path="/policies" element={<AppLayout><PolicyListPage /></AppLayout>} />
-            <Route path="/policies/:id" element={<AppLayout><PolicyDetailPage /></AppLayout>} />
+            {/* Policies (All authenticated users scoped to their authorization) */}
+            <Route 
+              path="/policies" 
+              element={
+                <ProtectedRoute>
+                  <AppLayout><PolicyListPage /></AppLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/policies/:id" 
+              element={
+                <ProtectedRoute>
+                  <AppLayout><PolicyDetailPage /></AppLayout>
+                </ProtectedRoute>
+              } 
+            />
 
             {/* Claims */}
-            <Route path="/claims" element={<AppLayout><ClaimListPage /></AppLayout>} />
-            <Route path="/claims/new" element={<AppLayout><NewClaimPage /></AppLayout>} />
-            <Route path="/claims/:id" element={<AppLayout><ClaimDetailPage /></AppLayout>} />
-            <Route path="/claims/:id/review" element={<AppLayout><ClaimReviewPage /></AppLayout>} />
+            <Route 
+              path="/claims" 
+              element={
+                <ProtectedRoute>
+                  <AppLayout><ClaimListPage /></AppLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/claims/new" 
+              element={
+                <ProtectedRoute allowedRoles={['guardian', 'admin']}>
+                  <AppLayout><NewClaimPage /></AppLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/claims/:id" 
+              element={
+                <ProtectedRoute>
+                  <AppLayout><ClaimDetailPage /></AppLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/claims/:id/review" 
+              element={
+                <ProtectedRoute allowedRoles={['claims_officer', 'admin']}>
+                  <AppLayout><ClaimReviewPage /></AppLayout>
+                </ProtectedRoute>
+              } 
+            />
 
             {/* EduShield Continuity Intelligence */}
-            <Route path="/continuity" element={<AppLayout><ContinuityPage /></AppLayout>} />
-            <Route path="/ai-assistant" element={<AppLayout><AIAssistantPage /></AppLayout>} />
+            <Route 
+              path="/continuity" 
+              element={
+                <ProtectedRoute allowedRoles={['guardian', 'student', 'admin']}>
+                  <AppLayout><ContinuityPage /></AppLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/ai-assistant" 
+              element={
+                <ProtectedRoute>
+                  <AppLayout><AIAssistantPage /></AppLayout>
+                </ProtectedRoute>
+              } 
+            />
 
-            {/* University Verification */}
-            <Route path="/university/verification" element={<AppLayout><UniversityVerificationPage /></AppLayout>} />
+            {/* University Verification (Guards: University Registrar & Admin) */}
+            <Route 
+              path="/university/verification" 
+              element={
+                <ProtectedRoute allowedRoles={['university', 'admin']}>
+                  <AppLayout><UniversityVerificationPage /></AppLayout>
+                </ProtectedRoute>
+              } 
+            />
 
-            {/* Reports */}
-            <Route path="/reports" element={<AppLayout><ReportsPage /></AppLayout>} />
+            {/* Operational Reports (Staff: Claims Officer, University, Admin) */}
+            <Route 
+              path="/reports" 
+              element={
+                <ProtectedRoute allowedRoles={['claims_officer', 'university', 'admin']}>
+                  <AppLayout><ReportsPage /></AppLayout>
+                </ProtectedRoute>
+              } 
+            />
 
-            {/* Administration */}
-            <Route path="/admin/users" element={<AppLayout><UsersPage /></AppLayout>} />
-            <Route path="/admin/plans" element={<AppLayout><PlansPage /></AppLayout>} />
-            <Route path="/admin/rules" element={<AppLayout><RulesPage /></AppLayout>} />
+            {/* Administration Console (Guards: Strict Admin only) */}
+            <Route 
+              path="/admin/users" 
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AppLayout><UsersPage /></AppLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/plans" 
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AppLayout><PlansPage /></AppLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/rules" 
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AppLayout><RulesPage /></AppLayout>
+                </ProtectedRoute>
+              } 
+            />
 
             {/* Catch-all fallback */}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

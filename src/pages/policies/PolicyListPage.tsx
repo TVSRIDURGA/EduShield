@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ShieldCheck, PlusCircle, Clock, ChevronRight, FileText } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { PoliciesRepo } from '../../repositories/firestoreRepo';
+import { PoliciesRepo, StudentsRepo } from '../../repositories/firestoreRepo';
 import { EducationPolicy } from '../../models/insurance';
 import { formatINR, formatDate } from '../../utils/businessRules';
 import { Badge } from '../../components/common/Badge';
@@ -18,10 +18,27 @@ export const PolicyListPage: React.FC = () => {
     async function load() {
       try {
         const all = await PoliciesRepo.getAll();
+        const isDemoGuardian = user?.email === 'guardian@edushield.demo';
+        const isDemoStudent = user?.email === 'student@edushield.demo';
+        const isDemoUniv = user?.email === 'university@edushield.demo';
+
         if (role === 'admin' || role === 'claims_officer') {
           setPolicies(all);
+        } else if (role === 'student') {
+          setPolicies(all.filter(p => 
+            p.studentId === user?.id || 
+            (isDemoStudent && p.id === 'pol_active_aarav') ||
+            p.studentName.toLowerCase() === user?.displayName.toLowerCase()
+          ));
+        } else if (role === 'university') {
+          const univId = user?.universityId || (isDemoUniv ? 'univ_iitd' : '');
+          setPolicies(all.filter(p => p.universityId === univId));
         } else {
-          setPolicies(all.filter(p => p.guardianId === user?.id || user?.email === 'guardian@edushield.demo'));
+          // Guardian role (default)
+          setPolicies(all.filter(p => 
+            p.guardianId === user?.id || 
+            (isDemoGuardian && p.guardianId === 'usr_guardian_1')
+          ));
         }
       } catch (err) {
         console.error('Failed to load policies:', err);
@@ -70,9 +87,13 @@ export const PolicyListPage: React.FC = () => {
       {policies.length === 0 ? (
         <EmptyState
           title="No Policies Bound"
-          description="You do not have any active education insurance policies currently bound."
-          actionText="Get a Policy Quote"
-          onAction={() => window.location.href = '/quotes/new'}
+          description={
+            role === 'guardian'
+              ? "You do not have any active education insurance policies currently bound for your children."
+              : "No education insurance policies are associated with your verified account."
+          }
+          actionText={role === 'guardian' ? "Get a Policy Quote" : undefined}
+          onAction={role === 'guardian' ? () => window.location.href = '/quotes/new' : undefined}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -98,25 +119,30 @@ export const PolicyListPage: React.FC = () => {
                 <div className="mt-4 pt-3 border-t border-slate-100 grid grid-cols-2 gap-3 text-xs">
                   <div>
                     <span className="text-slate-400">Total Cover Limit:</span>
-                    <div className="font-bold text-slate-900 text-sm">{formatINR(pol.coverageAmount)}</div>
+                    <div className="font-bold text-slate-900 text-sm mt-0.5">{formatINR(pol.coverageAmount)}</div>
                   </div>
                   <div>
                     <span className="text-slate-400">Annual Premium:</span>
-                    <div className="font-bold text-slate-900 text-sm">{formatINR(pol.totalAnnualPremium)}/yr</div>
+                    <div className="font-bold text-brand-700 text-sm mt-0.5">{formatINR(pol.totalAnnualPremium)}/yr</div>
                   </div>
+                </div>
+
+                <div className="mt-3 text-xs text-slate-500 flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Valid through: {formatDate(pol.expiryDate)}</span>
                 </div>
               </div>
 
-              <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                <span className="flex items-center gap-1 text-slate-500">
-                  <Clock className="w-3.5 h-3.5 text-slate-400" />
-                  Expires: {formatDate(pol.expiryDate)}
+              <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-[11px] text-slate-400">
+                  Waiting Period: {pol.waitingPeriodDays} days
                 </span>
                 <Link
                   to={`/policies/${pol.id}`}
-                  className="font-semibold text-brand-600 hover:text-brand-700 flex items-center gap-1"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:text-brand-700"
                 >
-                  View Policy <ChevronRight className="w-3.5 h-3.5" />
+                  <span>Certificate Details</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
             </div>

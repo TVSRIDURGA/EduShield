@@ -20,12 +20,27 @@ export const ClaimListPage: React.FC = () => {
     async function load() {
       try {
         const all = await ClaimsRepo.getAll();
+        const isDemoGuardian = user?.email === 'guardian@edushield.demo';
+        const isDemoStudent = user?.email === 'student@edushield.demo';
+        const isDemoUniv = user?.email === 'university@edushield.demo';
+
         if (role === 'admin' || role === 'claims_officer') {
           setClaims(all);
+        } else if (role === 'student') {
+          setClaims(all.filter(c => 
+            c.studentId === user?.id || 
+            (isDemoStudent && c.id === 'clm_active_1') ||
+            c.studentName.toLowerCase() === user?.displayName.toLowerCase()
+          ));
         } else if (role === 'university') {
-          setClaims(all.filter(c => c.universityId === 'univ_iitd'));
+          const univId = user?.universityId || (isDemoUniv ? 'univ_iitd' : '');
+          setClaims(all.filter(c => c.universityId === univId));
         } else {
-          setClaims(all.filter(c => c.guardianId === user?.id || user?.email === 'guardian@edushield.demo'));
+          // Guardian
+          setClaims(all.filter(c => 
+            c.guardianId === user?.id || 
+            (isDemoGuardian && c.guardianId === 'usr_guardian_1')
+          ));
         }
       } catch (err) {
         console.error('Failed to load claims:', err);
@@ -59,13 +74,13 @@ export const ClaimListPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-2 text-amber-600 text-xs font-semibold uppercase tracking-wider mb-1">
             <FileText className="w-4 h-4" />
-            <span>Claims Lifecycle Center</span>
+            <span>Claims Lifecycle & Adjudication</span>
           </div>
           <h1 className="text-2xl font-bold text-slate-900">
             Education Insurance Claims
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Track claims adjudication, document verification, and direct university fee disbursements.
+            Track document readiness, university ledger certifications, and direct institutional remittances.
           </p>
         </div>
 
@@ -75,36 +90,37 @@ export const ClaimListPage: React.FC = () => {
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs shadow-sm transition"
           >
             <PlusCircle className="w-4 h-4" />
-            <span>File New Claim</span>
+            <span>Submit New Claim</span>
           </Link>
         )}
       </div>
 
       {/* Filter and Search Bar */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-col sm:flex-row gap-3">
-        <div className="flex-1 relative">
+        <div className="relative flex-1">
           <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
           <input
             type="text"
-            placeholder="Search by student, claim number, or university..."
+            placeholder="Search claims by number, student name, or institution..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-xs"
+            className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
         </div>
+
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white text-slate-700 font-medium"
+          className="px-3 py-2 border border-slate-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
         >
-          <option value="ALL">All Statuses</option>
+          <option value="ALL">All Statuses ({claims.length})</option>
           <option value="SUBMITTED">Submitted</option>
           <option value="UNDER_REVIEW">Under Review</option>
           <option value="DOCUMENTS_REQUIRED">Documents Required</option>
-          <option value="UNIVERSITY_VERIFICATION_PENDING">Univ Verification Pending</option>
+          <option value="UNIVERSITY_VERIFICATION_PENDING">Univ Pending</option>
           <option value="ASSESSMENT">Assessment</option>
           <option value="APPROVED">Approved</option>
-          <option value="PAID">Paid</option>
+          <option value="PAID">Paid / Remitted</option>
           <option value="REJECTED">Rejected</option>
         </select>
       </div>
@@ -112,7 +128,11 @@ export const ClaimListPage: React.FC = () => {
       {filtered.length === 0 ? (
         <EmptyState
           title="No Claims Found"
-          description="There are no claims matching your filter criteria."
+          description={
+            role === 'guardian'
+              ? "No claims match your criteria. If an unexpected emergency occurs, you can submit a claim online."
+              : "No claims found matching your filter criteria."
+          }
           actionText={role === 'guardian' ? "Submit a Claim" : undefined}
           onAction={role === 'guardian' ? () => window.location.href = '/claims/new' : undefined}
         />
@@ -121,42 +141,36 @@ export const ClaimListPage: React.FC = () => {
           {filtered.map((claim) => (
             <div
               key={claim.id}
-              className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:border-amber-300 transition flex flex-col md:flex-row md:items-center justify-between gap-4"
+              className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition flex flex-col md:flex-row md:items-center justify-between gap-4"
             >
-              <div>
-                <div className="flex items-center gap-2">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2.5">
                   <span className="font-mono text-xs font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded">
                     {claim.claimNumber}
                   </span>
                   <Badge status={claim.status} />
-                  <span className="text-[11px] text-slate-400">
-                    Filed on {formatDate(claim.createdAt)}
-                  </span>
+                  <span className="text-xs text-slate-400">Filed {formatDate(claim.createdAt)}</span>
                 </div>
 
-                <div className="mt-2">
+                <div>
                   <h3 className="text-base font-bold text-slate-900">
-                    {claim.studentName} — {claim.claimType.replace('_', ' ')}
+                    {claim.claimType.replace('_', ' ')} — {claim.studentName}
                   </h3>
                   <div className="text-xs text-slate-500 mt-0.5">
                     {claim.universityName} • Policy #{claim.policyNumber}
                   </div>
                 </div>
 
-                <div className="mt-3 flex items-center gap-4 text-xs">
+                <div className="flex items-center gap-4 text-xs pt-1">
                   <div>
-                    <span className="text-slate-400">Claim Amount: </span>
-                    <span className="font-bold text-slate-900">{formatINR(claim.requestedAmount)}</span>
+                    <span className="text-slate-400">Claimed Tuition: </span>
+                    <strong className="text-slate-900">{formatINR(claim.requestedAmount)}</strong>
                   </div>
                   <div>
-                    <span className="text-slate-400">AI Readiness: </span>
-                    <span className="font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+                    <span className="text-slate-400">AI Readiness Score: </span>
+                    <span className="font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200 text-[11px]">
                       {claim.readinessScore}%
                     </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400">Documents: </span>
-                    <span className="font-semibold text-slate-700">{claim.documents.length} attached</span>
                   </div>
                 </div>
               </div>
@@ -165,17 +179,16 @@ export const ClaimListPage: React.FC = () => {
                 {(role === 'claims_officer' || role === 'admin') && (
                   <Link
                     to={`/claims/${claim.id}/review`}
-                    className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs shadow-sm transition"
+                    className="px-3.5 py-2 rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 font-semibold text-xs border border-purple-200 transition"
                   >
-                    Adjuster Review
+                    Adjuster Console
                   </Link>
                 )}
                 <Link
                   to={`/claims/${claim.id}`}
-                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs transition flex items-center gap-1"
+                  className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs transition"
                 >
-                  <span>View Case</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
+                  View Details
                 </Link>
               </div>
             </div>

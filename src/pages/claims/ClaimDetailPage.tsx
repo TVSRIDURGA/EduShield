@@ -11,7 +11,9 @@ import {
   CreditCard,
   Paperclip,
   ArrowRight,
-  ShieldAlert
+  ShieldAlert,
+  Lock,
+  ArrowLeft
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { ClaimsRepo } from '../../repositories/firestoreRepo';
@@ -81,6 +83,39 @@ export const ClaimDetailPage: React.FC = () => {
         <h2 className="text-xl font-bold text-slate-900">Claim Not Found</h2>
         <Link to="/claims" className="mt-4 inline-block text-brand-600 font-semibold text-sm">
           Return to Claims
+        </Link>
+      </div>
+    );
+  }
+
+  // Authorization Check
+  const isDemoGuardian = user?.email === 'guardian@edushield.demo';
+  const isDemoStudent = user?.email === 'student@edushield.demo';
+  const isDemoUniv = user?.email === 'university@edushield.demo';
+
+  const isAuthorized = 
+    role === 'admin' ||
+    role === 'claims_officer' ||
+    (role === 'guardian' && (claim.guardianId === user?.id || (isDemoGuardian && claim.guardianId === 'usr_guardian_1'))) ||
+    (role === 'student' && (claim.studentId === user?.id || claim.studentName.toLowerCase() === user?.displayName.toLowerCase() || (isDemoStudent && claim.id === 'clm_active_1'))) ||
+    (role === 'university' && (claim.universityId === user?.universityId || (isDemoUniv && claim.universityId === 'univ_iitd')));
+
+  if (!isAuthorized) {
+    return (
+      <div className="max-w-md mx-auto py-16 px-4 text-center space-y-4">
+        <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center mx-auto">
+          <Lock className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900">Access Denied</h2>
+        <p className="text-xs text-slate-500">
+          You do not have authorization to view this insurance claim record. Claims are accessible exclusively to the filing parent, the student beneficiary, the authorized university registrar, or an assigned claims officer.
+        </p>
+        <Link
+          to="/claims"
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-600 text-white font-semibold text-xs"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Return to My Claims</span>
         </Link>
       </div>
     );
@@ -163,7 +198,7 @@ export const ClaimDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {/* AI Preliminary Assessment Box (Feature C & D) */}
+      {/* AI Preliminary Assessment Box */}
       {claim.aiPreliminaryAssessment && (
         <div className="bg-gradient-to-br from-teal-50 via-white to-blue-50 rounded-2xl border border-teal-200 p-6 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b border-teal-100 pb-3">
