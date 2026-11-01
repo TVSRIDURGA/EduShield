@@ -29,11 +29,42 @@ export const CANONICAL_DEMO_ACCOUNTS: { [email: string]: Partial<UserProfile> } 
     role: 'claims_officer',
     phoneNumber: '+91 97110 55432'
   },
-  'university@edushield.demo': {
-    displayName: 'Dr. Sunita Deshmukh (Registrar Accounts)',
+  // Dedicated University Registrar Accounts (5 Institutions)
+  'registrar.iitd@edushield.demo': {
+    displayName: 'Dr. Sunita Deshmukh (IIT Delhi Registrar)',
     role: 'university',
     universityId: 'univ_iitd',
     phoneNumber: '+91 11 2659 7000'
+  },
+  'university@edushield.demo': {
+    displayName: 'Dr. Sunita Deshmukh (IIT Delhi Registrar)',
+    role: 'university',
+    universityId: 'univ_iitd',
+    phoneNumber: '+91 11 2659 7000'
+  },
+  'registrar.bits@edushield.demo': {
+    displayName: 'Prof. Chandrashekhar Rao (BITS Hyderabad Registrar)',
+    role: 'university',
+    universityId: 'univ_bits',
+    phoneNumber: '+91 40 6630 3999'
+  },
+  'registrar.nitt@edushield.demo': {
+    displayName: 'Dr. K. Balasubramanian (NIT Trichy Registrar)',
+    role: 'university',
+    universityId: 'univ_nitt',
+    phoneNumber: '+91 431 2503000'
+  },
+  'registrar.du@edushield.demo': {
+    displayName: 'Dr. Vikas Gupta (University of Delhi Registrar)',
+    role: 'university',
+    universityId: 'univ_du',
+    phoneNumber: '+91 11 2766 7011'
+  },
+  'registrar.reva@edushield.demo': {
+    displayName: 'Dr. N. Ramesh (REVA University Registrar)',
+    role: 'university',
+    universityId: 'univ_reva',
+    phoneNumber: '+91 80 4696 6966'
   },
   'admin@edushield.demo': {
     displayName: 'Priya Nambiar (System Administrator)',
@@ -76,19 +107,43 @@ export const authService = {
    * Fetch user profile from Firestore /users/{uid}
    */
   async getUserProfile(uid: string, email: string = ''): Promise<UserProfile> {
+    const normalizedEmail = email.toLowerCase();
+    const demoConfig = CANONICAL_DEMO_ACCOUNTS[normalizedEmail];
+
     try {
       const userDocRef = doc(db, 'users', uid);
       const snap = await getDoc(userDocRef);
       if (snap.exists()) {
-        return snap.data() as UserProfile;
+        const data = snap.data() as UserProfile;
+        // Sync canonical role and university mapping if present
+        if (demoConfig) {
+          let needsUpdate = false;
+          if (demoConfig.universityId && data.universityId !== demoConfig.universityId) {
+            data.universityId = demoConfig.universityId;
+            needsUpdate = true;
+          }
+          if (demoConfig.role && data.role !== demoConfig.role) {
+            data.role = demoConfig.role;
+            needsUpdate = true;
+          }
+          if (needsUpdate) {
+            try {
+              await updateDoc(userDocRef, {
+                ...(data.universityId ? { universityId: data.universityId } : {}),
+                role: data.role,
+                updatedAt: new Date().toISOString()
+              });
+            } catch (syncErr) {
+              console.warn('Error syncing canonical user profile fields:', syncErr);
+            }
+          }
+        }
+        return data;
       }
     } catch (err) {
       console.warn('Firestore getUserProfile read warning:', err);
     }
 
-    // Check if canonical demo account configuration applies
-    const normalizedEmail = email.toLowerCase();
-    const demoConfig = CANONICAL_DEMO_ACCOUNTS[normalizedEmail];
     const initialRole: UserRole = demoConfig?.role || 'guardian';
     const initialName = demoConfig?.displayName || (email ? email.split('@')[0] : 'EduShield User');
     const universityId = demoConfig?.universityId;

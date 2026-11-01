@@ -26,12 +26,41 @@ const EVALUATOR_CREDENTIALS: { role: UserRole; label: string; name: string; emai
     email: 'officer@edushield.demo',
     desc: 'Claim adjudication queue, policy terms review, fee payouts'
   },
+  // Dedicated University Registrar Accounts (5 Institutions)
   {
     role: 'university',
-    label: 'University Registrar',
+    label: 'IIT Delhi Registrar',
     name: 'Dr. Sunita Deshmukh',
-    email: 'university@edushield.demo',
+    email: 'registrar.iitd@edushield.demo',
     desc: 'IIT Delhi Registrar fee ledger & student enrollment audit'
+  },
+  {
+    role: 'university',
+    label: 'BITS Pilani Registrar',
+    name: 'Prof. Chandrashekhar Rao',
+    email: 'registrar.bits@edushield.demo',
+    desc: 'BITS Pilani Hyderabad Campus fee ledger & tuition audit'
+  },
+  {
+    role: 'university',
+    label: 'NIT Trichy Registrar',
+    name: 'Dr. K. Balasubramanian',
+    email: 'registrar.nitt@edushield.demo',
+    desc: 'NIT Trichy fee ledger & student enrollment audit'
+  },
+  {
+    role: 'university',
+    label: 'DU Registrar',
+    name: 'Dr. Vikas Gupta',
+    email: 'registrar.du@edushield.demo',
+    desc: 'University of Delhi fee ledger & semester dues audit'
+  },
+  {
+    role: 'university',
+    label: 'REVA University Registrar',
+    name: 'Dr. N. Ramesh',
+    email: 'registrar.reva@edushield.demo',
+    desc: 'REVA University fee ledger & student enrollment audit'
   },
   {
     role: 'admin',

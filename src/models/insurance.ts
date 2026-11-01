@@ -205,6 +205,15 @@ export interface ClaimDocument {
   aiVerificationNotes?: string;
 }
 
+export type UniversityVerificationStatus = 
+  | 'PENDING' 
+  | 'VERIFIED' 
+  | 'VERIFIED_PAID' 
+  | 'VERIFIED_OUTSTANDING' 
+  | 'DISCREPANCY' 
+  | 'DISCREPANCY_FOUND' 
+  | 'REQUIRES_INFORMATION';
+
 export interface UniversityVerification {
   id: string;
   claimId: string;
@@ -217,7 +226,9 @@ export interface UniversityVerification {
   enrollmentStatusVerified: boolean;
   officerRemarks?: string;
   verifiedAt?: string;
-  status: 'PENDING' | 'VERIFIED' | 'DISCREPANCY_FOUND';
+  verifiedBy?: string;
+  verifiedAmount?: number;
+  status: UniversityVerificationStatus;
 }
 
 export interface ClaimReview {

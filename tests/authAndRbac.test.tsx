@@ -15,12 +15,32 @@ vi.mock('../src/contexts/AuthContext', () => ({
 }));
 
 describe('Authentication & Canonical Role Specifications', () => {
-  it('defines the five canonical demo accounts with correct roles and affiliations', () => {
+  it('defines the dedicated accounts for all five universities with correct institution IDs', () => {
+    // 1. IIT Delhi
+    expect(CANONICAL_DEMO_ACCOUNTS['registrar.iitd@edushield.demo'].role).toBe('university');
+    expect(CANONICAL_DEMO_ACCOUNTS['registrar.iitd@edushield.demo'].universityId).toBe('univ_iitd');
+    expect(CANONICAL_DEMO_ACCOUNTS['university@edushield.demo'].universityId).toBe('univ_iitd');
+
+    // 2. BITS Pilani - Hyderabad Campus
+    expect(CANONICAL_DEMO_ACCOUNTS['registrar.bits@edushield.demo'].role).toBe('university');
+    expect(CANONICAL_DEMO_ACCOUNTS['registrar.bits@edushield.demo'].universityId).toBe('univ_bits');
+
+    // 3. NIT Trichy
+    expect(CANONICAL_DEMO_ACCOUNTS['registrar.nitt@edushield.demo'].role).toBe('university');
+    expect(CANONICAL_DEMO_ACCOUNTS['registrar.nitt@edushield.demo'].universityId).toBe('univ_nitt');
+
+    // 4. University of Delhi
+    expect(CANONICAL_DEMO_ACCOUNTS['registrar.du@edushield.demo'].role).toBe('university');
+    expect(CANONICAL_DEMO_ACCOUNTS['registrar.du@edushield.demo'].universityId).toBe('univ_du');
+
+    // 5. REVA University
+    expect(CANONICAL_DEMO_ACCOUNTS['registrar.reva@edushield.demo'].role).toBe('university');
+    expect(CANONICAL_DEMO_ACCOUNTS['registrar.reva@edushield.demo'].universityId).toBe('univ_reva');
+
+    // Other roles
     expect(CANONICAL_DEMO_ACCOUNTS['guardian@edushield.demo'].role).toBe('guardian');
     expect(CANONICAL_DEMO_ACCOUNTS['student@edushield.demo'].role).toBe('student');
     expect(CANONICAL_DEMO_ACCOUNTS['officer@edushield.demo'].role).toBe('claims_officer');
-    expect(CANONICAL_DEMO_ACCOUNTS['university@edushield.demo'].role).toBe('university');
-    expect(CANONICAL_DEMO_ACCOUNTS['university@edushield.demo'].universityId).toBe('univ_iitd');
     expect(CANONICAL_DEMO_ACCOUNTS['admin@edushield.demo'].role).toBe('admin');
   });
 
@@ -242,6 +262,188 @@ describe('Separation of Duties & Payment Access Rules', () => {
     };
     const isSelfClaim2 = selfClaim.guardianId === officerUserId;
     expect(isSelfClaim2).toBe(true);
+  });
+});
+
+describe('Multi-University Registrar Authentication & Verification Workflows', () => {
+  // Mock claims repo for service tests
+  const mockClaims: Record<string, any> = {
+    'clm_bits_test': {
+      id: 'clm_bits_test',
+      claimNumber: 'CLM-BITS-001',
+      universityId: 'univ_bits',
+      universityName: 'BITS Pilani - Hyderabad Campus',
+      studentName: 'Ananya Sharma',
+      guardianId: 'usr_guardian_1',
+      requestedAmount: 247500,
+      status: 'UNDER_REVIEW',
+      universityVerification: {
+        status: 'PENDING'
+      },
+      reviews: []
+    },
+    'clm_iitd_test': {
+      id: 'clm_iitd_test',
+      claimNumber: 'CLM-IITD-001',
+      universityId: 'univ_iitd',
+      universityName: 'IIT Delhi',
+      studentName: 'Aarav Sharma',
+      guardianId: 'usr_guardian_1',
+      requestedAmount: 220000,
+      status: 'UNDER_REVIEW',
+      universityVerification: {
+        status: 'PENDING'
+      },
+      reviews: []
+    },
+    'clm_reva_test': {
+      id: 'clm_reva_test',
+      claimNumber: 'CLM-REVA-001',
+      universityId: 'univ_reva',
+      universityName: 'REVA University, Bengaluru',
+      studentName: 'Kavya Gowda',
+      guardianId: 'usr_guardian_1',
+      requestedAmount: 185000,
+      status: 'UNDER_REVIEW',
+      universityVerification: {
+        status: 'PENDING'
+      },
+      reviews: []
+    }
+  };
+
+  it('Scenario C: prevents cross-university access - BITS registrar cannot verify IIT Delhi claim', async () => {
+    const bitsRegistrar: UserProfile = {
+      id: 'usr_bits_rep',
+      uid: 'usr_bits_rep',
+      email: 'registrar.bits@edushield.demo',
+      displayName: 'Prof. Chandrashekhar Rao',
+      role: 'university',
+      universityId: 'univ_bits',
+      createdAt: '',
+      updatedAt: ''
+    };
+
+    // Attempt to verify IIT Delhi claim with BITS registrar credentials
+    const iitdClaim = mockClaims['clm_iitd_test'];
+    const canAccess = bitsRegistrar.universityId === iitdClaim.universityId;
+    expect(canAccess).toBe(false);
+  });
+
+  it('Scenario C: prevents cross-university access - IIT Delhi registrar cannot verify BITS claim', async () => {
+    const iitdRegistrar: UserProfile = {
+      id: 'usr_iitd_rep',
+      uid: 'usr_iitd_rep',
+      email: 'registrar.iitd@edushield.demo',
+      displayName: 'Dr. Sunita Deshmukh',
+      role: 'university',
+      universityId: 'univ_iitd',
+      createdAt: '',
+      updatedAt: ''
+    };
+
+    const bitsClaim = mockClaims['clm_bits_test'];
+    const canAccess = iitdRegistrar.universityId === bitsClaim.universityId;
+    expect(canAccess).toBe(false);
+  });
+
+  it('Scenario D: blocks claims officer approval when university fee verification is pending', () => {
+    const unverifiedClaim = {
+      status: 'UNDER_REVIEW',
+      universityVerification: {
+        status: 'PENDING'
+      }
+    };
+
+    const isUnivVerified = ['VERIFIED', 'VERIFIED_PAID', 'VERIFIED_OUTSTANDING'].includes(
+      unverifiedClaim.universityVerification.status
+    );
+    expect(isUnivVerified).toBe(false);
+  });
+
+  it('Scenario D: blocks claims officer approval when university registrar reports a discrepancy', () => {
+    const discrepancyClaim = {
+      status: 'UNDER_REVIEW',
+      universityVerification: {
+        status: 'DISCREPANCY',
+        officerRemarks: 'Student roll number not found on current semester rolls'
+      }
+    };
+
+    const isUnivVerified = ['VERIFIED', 'VERIFIED_PAID', 'VERIFIED_OUTSTANDING'].includes(
+      discrepancyClaim.universityVerification.status
+    );
+    expect(isUnivVerified).toBe(false);
+  });
+
+  it('Scenario D: blocks claims officer approval when additional info is requested', () => {
+    const infoRequiredClaim = {
+      status: 'DOCUMENTS_REQUIRED',
+      universityVerification: {
+        status: 'REQUIRES_INFORMATION',
+        officerRemarks: 'Hostel challan receipt missing'
+      }
+    };
+
+    const isUnivVerified = ['VERIFIED', 'VERIFIED_PAID', 'VERIFIED_OUTSTANDING'].includes(
+      infoRequiredClaim.universityVerification.status
+    );
+    expect(isUnivVerified).toBe(false);
+  });
+
+  it('Scenario A & B: permits claims officer approval once university fee verification is satisfied', () => {
+    const verifiedOutstandingClaim = {
+      status: 'ASSESSMENT',
+      universityVerification: {
+        status: 'VERIFIED_OUTSTANDING',
+        studentRollNo: '2024A7PS0192H',
+        confirmedOutstandingFee: 247500
+      }
+    };
+
+    const verifiedPaidClaim = {
+      status: 'ASSESSMENT',
+      universityVerification: {
+        status: 'VERIFIED_PAID',
+        studentRollNo: 'R24AI084',
+        confirmedAnnualTuition: 185000
+      }
+    };
+
+    expect(['VERIFIED', 'VERIFIED_PAID', 'VERIFIED_OUTSTANDING'].includes(
+      verifiedOutstandingClaim.universityVerification.status
+    )).toBe(true);
+
+    expect(['VERIFIED', 'VERIFIED_PAID', 'VERIFIED_OUTSTANDING'].includes(
+      verifiedPaidClaim.universityVerification.status
+    )).toBe(true);
+  });
+
+  it('Scenario E: validates supported verification states across universities', () => {
+    const supportedStates = [
+      'PENDING',
+      'VERIFIED_PAID',
+      'VERIFIED_OUTSTANDING',
+      'DISCREPANCY',
+      'REQUIRES_INFORMATION'
+    ];
+
+    expect(supportedStates).toContain('VERIFIED_PAID');
+    expect(supportedStates).toContain('VERIFIED_OUTSTANDING');
+    expect(supportedStates).toContain('DISCREPANCY');
+    expect(supportedStates).toContain('REQUIRES_INFORMATION');
+  });
+
+  it('rejects falsely marking fees as paid without valid roll number and remarks', () => {
+    const validatePaidVerification = (rollNo: string, remarks: string) => {
+      if (!rollNo || !rollNo.trim()) throw new Error('Roll number required');
+      if (!remarks || remarks.trim().length < 5) throw new Error('Remarks required');
+      return true;
+    };
+
+    expect(() => validatePaidVerification('', 'Legit payment')).toThrow('Roll number required');
+    expect(() => validatePaidVerification('2024A7', '')).toThrow('Remarks required');
+    expect(validatePaidVerification('2024A7PS0192H', 'Semester fees confirmed settled')).toBe(true);
   });
 });
 

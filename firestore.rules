@@ -62,7 +62,7 @@ service cloud.firestore {
     function isUniversityRep(univId) {
       return isAuthenticated() && (
         isAdmin() ||
-        (isUniversity() && (getUniversityId() == univId || getUniversityId() == ''))
+        (isUniversity() && getUniversityId() != '' && getUniversityId() == univId)
       );
     }
 

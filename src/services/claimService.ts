@@ -7,7 +7,8 @@ import {
   ClaimType, 
   DocumentType, 
   UserProfile, 
-  UniversityVerification 
+  UniversityVerification,
+  UniversityVerificationStatus
 } from '../models/insurance';
 import { 
   generateClaimNumber, 
@@ -186,10 +187,28 @@ export const claimService = {
     confirmedAnnualTuition: number,
     confirmedOutstandingFee: number,
     officerRemarks: string,
-    univUser: UserProfile
+    univUser: UserProfile,
+    decisionStatus: UniversityVerificationStatus = 'VERIFIED_OUTSTANDING'
   ): Promise<EducationClaim> {
     const claim = await ClaimsRepo.getById(claimId);
     if (!claim) throw new Error('Claim not found');
+
+    // Strict Cross-University Access Guard: Registrar can only verify claims of their assigned university
+    if (univUser.role === 'university' && univUser.universityId && univUser.universityId !== claim.universityId) {
+      throw new Error(`Institutional Security Violation: You are authorized only for [${univUser.universityId}], cannot access or verify records for [${claim.universityId}].`);
+    }
+
+    // Validation rule: Registrars cannot falsely mark fees as paid without verifying records & providing remarks
+    if (decisionStatus === 'VERIFIED_PAID') {
+      if (!studentRollNo || !studentRollNo.trim()) {
+        throw new Error('Student roll number is required to confirm fee ledger payment records.');
+      }
+      if (!officerRemarks || officerRemarks.trim().length < 5) {
+        throw new Error('Detailed ledger verification remarks are required to certify fee payment status.');
+      }
+    }
+
+    const isVerified = decisionStatus === 'VERIFIED_PAID' || decisionStatus === 'VERIFIED_OUTSTANDING' || decisionStatus === 'VERIFIED';
 
     const updatedVerification: UniversityVerification = {
       id: claim.universityVerification?.id || `uv_${Date.now()}`,
@@ -197,13 +216,15 @@ export const claimService = {
       universityId: claim.universityId,
       universityName: claim.universityName,
       studentName: claim.studentName,
-      studentRollNo,
-      confirmedAnnualTuition,
-      confirmedOutstandingFee,
-      enrollmentStatusVerified: true,
-      officerRemarks,
+      studentRollNo: studentRollNo.trim(),
+      confirmedAnnualTuition: Number(confirmedAnnualTuition) || 0,
+      confirmedOutstandingFee: Number(confirmedOutstandingFee) || 0,
+      enrollmentStatusVerified: isVerified,
+      officerRemarks: officerRemarks.trim(),
       verifiedAt: new Date().toISOString(),
-      status: 'VERIFIED'
+      verifiedBy: univUser.displayName,
+      verifiedAmount: Number(confirmedOutstandingFee) || 0,
+      status: decisionStatus
     };
 
     // Re-evaluate readiness
@@ -217,20 +238,58 @@ export const claimService = {
       readinessScore = analysis.claimReadinessScore;
     }
 
+    // Workflow transition based on institutional verification:
+    // - Verified states: advance claim to ASSESSMENT for Claims Officer review
+    // - Discrepancy: keep claim blocked under review
+    // - Requires info: advance to DOCUMENTS_REQUIRED
+    let nextClaimStatus: ClaimStatus = claim.status;
+    if (isVerified) {
+      nextClaimStatus = 'ASSESSMENT';
+    } else if (decisionStatus === 'DISCREPANCY' || decisionStatus === 'DISCREPANCY_FOUND') {
+      nextClaimStatus = 'UNIVERSITY_VERIFICATION_PENDING';
+    } else if (decisionStatus === 'REQUIRES_INFORMATION') {
+      nextClaimStatus = 'DOCUMENTS_REQUIRED';
+    }
+
     const updated = await ClaimsRepo.update(claimId, {
       universityVerification: updatedVerification,
       readinessScore,
-      status: 'ASSESSMENT',
+      status: nextClaimStatus,
       updatedAt: new Date().toISOString()
     });
 
+    // Immutable audit log
     await auditService.log(
       'UNIVERSITY_VERIFICATION_COMPLETED',
       'CLAIM',
       claimId,
       { id: univUser.id, name: univUser.displayName, role: univUser.role },
-      `Verified enrollment for ${claim.studentName} (Roll: ${studentRollNo}). Outstanding fee confirmed: ₹${confirmedOutstandingFee.toLocaleString('en-IN')}`
+      `Registrar (${univUser.displayName}) recorded decision [${decisionStatus}] for ${claim.studentName} (Roll: ${studentRollNo}) at ${claim.universityName}. Certified Fee: ₹${confirmedOutstandingFee.toLocaleString('en-IN')}. Remarks: ${officerRemarks}`
     );
+
+    // Notify Claims Officer
+    await NotificationsRepo.create({
+      id: 'notif_' + Date.now(),
+      userId: 'usr_officer_1',
+      title: `University Fee Verification: ${decisionStatus}`,
+      message: `${claim.universityName} Registrar recorded decision [${decisionStatus}] for Claim ${claim.claimNumber} (${claim.studentName}).`,
+      type: isVerified ? 'SUCCESS' : 'WARNING',
+      read: false,
+      linkUrl: `/claims/${claimId}/review`,
+      createdAt: new Date().toISOString()
+    });
+
+    // Notify Parent/Guardian
+    await NotificationsRepo.create({
+      id: 'notif_guard_' + Date.now(),
+      userId: claim.guardianId,
+      title: `University Verification: ${decisionStatus}`,
+      message: `${claim.universityName} Registrar has verified your student's fee ledger with status [${decisionStatus}].`,
+      type: isVerified ? 'SUCCESS' : 'INFO',
+      read: false,
+      linkUrl: `/claims/${claimId}`,
+      createdAt: new Date().toISOString()
+    });
 
     return updated!;
   },
@@ -245,6 +304,17 @@ export const claimService = {
   ): Promise<EducationClaim> {
     const claim = await ClaimsRepo.getById(claimId);
     if (!claim) throw new Error('Claim not found');
+
+    // Rule: Claims Officer cannot approve a claim while university verification is pending, discrepancy, or incomplete
+    if (decision === 'APPROVED') {
+      const univStatus = claim.universityVerification?.status;
+      const isUnivVerified = univStatus === 'VERIFIED_PAID' || univStatus === 'VERIFIED_OUTSTANDING' || univStatus === 'VERIFIED';
+      if (!isUnivVerified) {
+        throw new Error(
+          `Adjudication Blocked: University fee verification is currently [${univStatus || 'PENDING'}]. Mandatory institutional registrar verification must be completed prior to claim approval.`
+        );
+      }
+    }
 
     let nextStatus: ClaimStatus = claim.status;
     if (decision === 'APPROVED') {

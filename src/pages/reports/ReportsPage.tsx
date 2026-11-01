@@ -21,8 +21,10 @@ import {
   AuditLog 
 } from '../../models/insurance';
 import { formatINR, formatDate } from '../../utils/businessRules';
+import { useAuth } from '../../contexts/AuthContext';
 
 export const ReportsPage: React.FC = () => {
+  const { user, role } = useAuth();
   const [reportType, setReportType] = useState<'policies' | 'claims' | 'quotes' | 'audits'>('claims');
   const [policies, setPolicies] = useState<EducationPolicy[]>([]);
   const [claims, setClaims] = useState<EducationClaim[]>([]);
@@ -39,10 +41,19 @@ export const ReportsPage: React.FC = () => {
           QuotesRepo.getAll(),
           AuditsRepo.getAll()
         ]);
-        setPolicies(p);
-        setClaims(c);
-        setQuotes(q);
-        setAudits(a);
+
+        if (role === 'university') {
+          const univId = user?.universityId || '';
+          setPolicies(p.filter(item => item.universityId === univId));
+          setClaims(c.filter(item => item.universityId === univId));
+          setQuotes(q.filter(item => item.universityId === univId));
+          setAudits(a);
+        } else {
+          setPolicies(p);
+          setClaims(c);
+          setQuotes(q);
+          setAudits(a);
+        }
       } catch (err) {
         console.error('Failed to load reports data:', err);
       } finally {
@@ -50,7 +61,7 @@ export const ReportsPage: React.FC = () => {
       }
     }
     load();
-  }, []);
+  }, [user, role]);
 
   const downloadCSV = (filename: string, headers: string[], rows: (string | number)[][]) => {
     const csvContent = [

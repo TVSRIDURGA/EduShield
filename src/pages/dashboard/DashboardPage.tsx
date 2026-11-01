@@ -962,12 +962,12 @@ export const DashboardPage: React.FC = () => {
   // ==========================================
   if (role === 'university') {
     const isCanonicalDemo = user?.email === 'university@edushield.demo';
-    const currentUnivId = user?.universityId || (isCanonicalDemo ? 'univ_iitd' : 'univ_iitd');
+    const currentUnivId = user?.universityId || (isCanonicalDemo ? 'univ_iitd' : '');
     const myUniv = universities.find(u => u.id === currentUnivId) || universities[0];
 
     const univClaims = claims.filter(c => c.universityId === currentUnivId);
-    const pendingVerifs = univClaims.filter(c => c.universityVerification?.status === 'PENDING');
-    const verifiedTotal = univClaims.filter(c => c.universityVerification?.status === 'VERIFIED').length;
+    const pendingVerifs = univClaims.filter(c => !c.universityVerification?.status || c.universityVerification?.status === 'PENDING');
+    const verifiedTotal = univClaims.filter(c => ['VERIFIED', 'VERIFIED_PAID', 'VERIFIED_OUTSTANDING'].includes(c.universityVerification?.status || '')).length;
     const totalFeeRemittances = univClaims.filter(c => c.status === 'PAID').reduce((acc, c) => acc + c.requestedAmount, 0);
 
     return (

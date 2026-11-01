@@ -38,14 +38,25 @@ export const Badge: React.FC<BadgeProps> = ({ status, role, variant, children, c
         break;
     }
   } else if (status) {
-    text = text || status;
+    let displayLabel = String(status);
+    if (status === 'VERIFIED_PAID') displayLabel = 'Verified & Paid';
+    else if (status === 'VERIFIED_OUTSTANDING') displayLabel = 'Verified Outstanding';
+    else if (status === 'DISCREPANCY' || status === 'DISCREPANCY_FOUND') displayLabel = 'Discrepancy Found';
+    else if (status === 'REQUIRES_INFORMATION') displayLabel = 'Requires Info';
+    else if (status === 'UNIVERSITY_VERIFICATION_PENDING') displayLabel = 'Univ Verification Pending';
+
+    text = children || displayLabel;
     switch (status) {
       case 'ACTIVE':
       case 'APPROVED':
       case 'COMPLETED':
       case 'PAID':
       case 'VERIFIED':
+      case 'VERIFIED_PAID':
         color = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        break;
+      case 'VERIFIED_OUTSTANDING':
+        color = 'bg-teal-50 text-teal-800 border-teal-300 font-bold';
         break;
       case 'SUBMITTED':
       case 'UNDER_REVIEW':
@@ -58,12 +69,15 @@ export const Badge: React.FC<BadgeProps> = ({ status, role, variant, children, c
       case 'UNIVERSITY_VERIFICATION_PENDING':
       case 'RENEWAL_DUE':
       case 'PENDING':
+      case 'REQUIRES_INFORMATION':
         color = 'bg-amber-50 text-amber-700 border-amber-200';
         break;
       case 'REJECTED':
       case 'FAILED':
       case 'CANCELLED':
       case 'EXPIRED':
+      case 'DISCREPANCY':
+      case 'DISCREPANCY_FOUND':
         color = 'bg-rose-50 text-rose-700 border-rose-200';
         break;
       case 'DRAFT':

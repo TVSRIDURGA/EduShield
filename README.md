@@ -47,13 +47,29 @@ To evaluate each independent stakeholder experience, authenticate using the veri
 
 | Role | Evaluator Account | Verified Email | Password | Authorized Scope & Key Capabilities |
 |---|---|---|---|---|
-| **Parent / Guardian** | Rajesh Sharma | `guardian@edushield.demo` | `EduShield@2026` | Calculate quotes, purchase & renew policies, submit claims, register children, view family records |
-| **Student** | Aarav Sharma | `student@edushield.demo` | `EduShield@2026` | Dynamic IIT Delhi student portal, view degree protections, track claim status, upload evidence |
-| **Claims Officer** | Vikram Mehta | `officer@edushield.demo` | `EduShield@2026` | Guidewire ClaimCenter work queue, review evidence, record adjudication decisions, enforce separation of duties |
-| **University Registrar** | Dr. Sunita Deshmukh | `university@edushield.demo` | `EduShield@2026` | IIT Delhi Registrar fee portal, verify student enrollment, certify semester dues, direct fee escrow |
-| **Administrator** | Priya Nambiar | `admin@edushield.demo` | `EduShield@2026` | Operations hub, manage user accounts & role assignments, business rules, immutable audit log |
+| **Parent / Guardian** | Rajesh Sharma | `guardian@edushield.demo` | `EduShield@2026` | Calculate quotes, purchase & renew policies, submit claims, register children under 5 universities, view family records |
+| **Student** | Aarav Sharma | `student@edushield.demo` | `EduShield@2026` | Dynamic student portal, view degree protections, track claim status, upload evidence |
+| **Claims Officer** | Vikram Mehta | `officer@edushield.demo` | `EduShield@2026` | Guidewire ClaimCenter work queue, review evidence, enforce separation of duties, approve claims once university fee verification is satisfied |
+| **IIT Delhi Registrar** | Dr. Sunita Deshmukh | `registrar.iitd@edushield.demo` | `EduShield@2026` | IIT Delhi fee portal (`univ_iitd`), verify student enrollment, certify semester dues, direct fee escrow |
+| **BITS Pilani Registrar** | Prof. Chandrashekhar Rao | `registrar.bits@edushield.demo` | `EduShield@2026` | BITS Pilani Hyderabad fee portal (`univ_bits`), verify BITS students, audit semester fee ledger |
+| **NIT Trichy Registrar** | Dr. K. Balasubramanian | `registrar.nitt@edushield.demo` | `EduShield@2026` | NIT Trichy fee portal (`univ_nitt`), verify NIT student enrollment & outstanding tuition ledger |
+| **DU Registrar** | Dr. Vikas Gupta | `registrar.du@edushield.demo` | `EduShield@2026` | University of Delhi fee portal (`univ_du`), verify enrollment, inspect fee demand challans |
+| **REVA University Registrar** | Dr. N. Ramesh | `registrar.reva@edushield.demo` | `EduShield@2026` | REVA University fee portal (`univ_reva`), verify Bangalore campus students, confirm tuition dues |
+| **Administrator** | Priya Nambiar | `admin@edushield.demo` | `EduShield@2026` | Operations hub, manage user accounts & role assignments across universities, business rules, immutable audit log |
 
-*(The `/login` screen includes an Evaluator Quick-Fill helper that populates the email and password form fields for rapid evaluation while still executing real Firebase Authentication).*
+*(The `/login` screen includes an Evaluator Quick-Fill helper that populates email and password fields for each stakeholder, including all five universities).*
+
+---
+
+### 🏛️ Five Universities Supported
+
+1. **Indian Institute of Technology Delhi (IIT Delhi)** — ID: `univ_iitd`
+2. **BITS Pilani – Hyderabad Campus** — ID: `univ_bits`
+3. **National Institute of Technology Tiruchirappalli (NIT Trichy)** — ID: `univ_nitt`
+4. **University of Delhi (Cluster Innovation Centre / Faculty of Technology)** — ID: `univ_du`
+5. **REVA University, Bengaluru** — ID: `univ_reva`
+
+Each university has dedicated authentication, isolated fee verification queues, and institutional escrow bank details. Cross-university data leakage is strictly prevented at both the application level and via backend Firestore Security Rules.
 
 ---
 

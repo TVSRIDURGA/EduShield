@@ -125,7 +125,7 @@ export const ClaimDetailPage: React.FC = () => {
   const stages = [
     { label: 'Submitted', active: true },
     { label: 'Under Review', active: ['UNDER_REVIEW', 'DOCUMENTS_REQUIRED', 'UNIVERSITY_VERIFICATION_PENDING', 'ASSESSMENT', 'APPROVED', 'PAID'].includes(claim.status) },
-    { label: 'Univ Verification', active: ['UNIVERSITY_VERIFICATION_PENDING', 'ASSESSMENT', 'APPROVED', 'PAID'].includes(claim.status) || claim.universityVerification?.status === 'VERIFIED' },
+    { label: 'Univ Verification', active: ['UNIVERSITY_VERIFICATION_PENDING', 'ASSESSMENT', 'APPROVED', 'PAID'].includes(claim.status) || ['VERIFIED', 'VERIFIED_PAID', 'VERIFIED_OUTSTANDING'].includes(claim.universityVerification?.status || '') },
     { label: 'Assessment', active: ['ASSESSMENT', 'APPROVED', 'PAID'].includes(claim.status) },
     { label: 'Approved', active: ['APPROVED', 'PAID'].includes(claim.status) },
     { label: 'Fee Paid', active: claim.status === 'PAID' },
@@ -327,14 +327,31 @@ export const ClaimDetailPage: React.FC = () => {
                 <span className="text-slate-500">Registrar Status:</span>
                 <Badge status={claim.universityVerification?.status || 'PENDING'} />
               </div>
-              {claim.universityVerification?.status === 'VERIFIED' && (
-                <div className="mt-2 pt-2 border-t border-slate-100 text-xs">
+              {claim.universityVerification && (
+                claim.universityVerification.status === 'VERIFIED_PAID' || 
+                claim.universityVerification.status === 'VERIFIED_OUTSTANDING' || 
+                claim.universityVerification.status === 'VERIFIED'
+              ) ? (
+                <div className="mt-2 pt-2 border-t border-slate-100 text-xs space-y-1">
                   <div className="text-slate-500">Roll No: <strong>{claim.universityVerification.studentRollNo}</strong></div>
-                  <div className="text-emerald-700 font-semibold mt-0.5">
-                    Confirmed Dues: {formatINR(claim.universityVerification.confirmedOutstandingFee)}
+                  <div className="text-emerald-700 font-semibold">
+                    Certified Dues: {formatINR(claim.universityVerification.confirmedOutstandingFee || claim.requestedAmount)}
                   </div>
+                  {claim.universityVerification.officerRemarks && (
+                    <div className="text-[11px] text-slate-600 italic">
+                      "{claim.universityVerification.officerRemarks}"
+                    </div>
+                  )}
                 </div>
-              )}
+              ) : claim.universityVerification?.status === 'DISCREPANCY' ? (
+                <div className="mt-2 pt-2 border-t border-rose-100 text-xs text-rose-700">
+                  ⚠ Discrepancy noted: {claim.universityVerification.officerRemarks}
+                </div>
+              ) : claim.universityVerification?.status === 'REQUIRES_INFORMATION' ? (
+                <div className="mt-2 pt-2 border-t border-amber-100 text-xs text-amber-700">
+                  ⏳ Action needed: {claim.universityVerification.officerRemarks}
+                </div>
+              ) : null}
             </div>
           </div>
 

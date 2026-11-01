@@ -98,11 +98,22 @@ export const ClaimReviewPage: React.FC = () => {
   // Separation of Duties: Prohibit self-approval if the officer is also the parent/guardian
   const isSelfClaim = claim.guardianId === user?.id;
 
+  // University verification status check
+  const univStatus = claim.universityVerification?.status;
+  const isUnivVerified = univStatus === 'VERIFIED_PAID' || 
+                         univStatus === 'VERIFIED_OUTSTANDING' || 
+                         univStatus === 'VERIFIED';
+
   const handleAdjudicate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!claim || !user) return;
     if (isSelfClaim) {
       setError('Separation of Duties Violation: You cannot adjudicate or approve your own family claim.');
+      return;
+    }
+
+    if (decision === 'APPROVED' && !isUnivVerified) {
+      setError(`Adjudication Blocked: University fee verification for ${claim.universityName} is currently [${univStatus || 'PENDING'}]. Mandatory registrar fee verification is required before approval can be granted.`);
       return;
     }
 
@@ -248,6 +259,18 @@ export const ClaimReviewPage: React.FC = () => {
               Record Adjudication Decision
             </h3>
 
+            {!isUnivVerified && (
+              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <strong className="font-bold">Mandatory University Registrar Verification Pending:</strong>
+                  <p className="mt-0.5">
+                    The institutional fee verification for <strong>{claim.universityName}</strong> is currently [<strong>{univStatus || 'PENDING'}</strong>]. Claims Adjusters cannot approve this claim until the university registrar verifies enrollment and certifies tuition ledger dues.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <form onSubmit={handleAdjudicate} className="space-y-4 text-xs">
               <div>
                 <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
@@ -256,15 +279,16 @@ export const ClaimReviewPage: React.FC = () => {
                 <div className="grid grid-cols-3 gap-3">
                   <button
                     type="button"
-                    disabled={isSelfClaim}
+                    disabled={isSelfClaim || !isUnivVerified}
                     onClick={() => setDecision('APPROVED')}
                     className={`py-2.5 px-3 rounded-xl border font-bold text-center transition ${
                       decision === 'APPROVED'
                         ? 'border-emerald-500 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-500'
                         : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                    }`}
+                    } ${!isUnivVerified ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    title={!isUnivVerified ? 'Disabled: University verification pending' : ''}
                   >
-                    ✓ APPROVE
+                    ✓ APPROVE {!isUnivVerified ? '(Locked)' : ''}
                   </button>
                   <button
                     type="button"
@@ -369,15 +393,59 @@ export const ClaimReviewPage: React.FC = () => {
                 <span className="text-slate-500">Status:</span>
                 <Badge status={claim.universityVerification?.status || 'PENDING'} />
               </div>
-              {claim.universityVerification?.status === 'VERIFIED' ? (
-                <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 space-y-1">
-                  <div className="font-bold">Student Roll: {claim.universityVerification.studentRollNo}</div>
-                  <div>Certified Dues: {formatINR(claim.universityVerification.confirmedOutstandingFee)}</div>
-                  <div className="text-[10px] text-emerald-700 italic">"{claim.universityVerification.officerRemarks}"</div>
+              {claim.universityVerification?.status === 'VERIFIED_PAID' ? (
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 space-y-1">
+                  <div className="font-bold flex items-center gap-1.5 text-emerald-800">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Tuition Paid in Full</span>
+                  </div>
+                  <div>Student Roll: <strong>{claim.universityVerification.studentRollNo}</strong></div>
+                  <div>Confirmed Fee: <strong>{formatINR(claim.universityVerification.confirmedAnnualTuition)}</strong></div>
+                  {claim.universityVerification.verifiedBy && (
+                    <div className="text-[10px] text-emerald-700">Audit by: {claim.universityVerification.verifiedBy}</div>
+                  )}
+                  <div className="text-[11px] text-emerald-800 italic pt-1 border-t border-emerald-200">
+                    "{claim.universityVerification.officerRemarks}"
+                  </div>
+                </div>
+              ) : (claim.universityVerification?.status === 'VERIFIED_OUTSTANDING' || claim.universityVerification?.status === 'VERIFIED') ? (
+                <div className="p-3 rounded-xl bg-teal-50 border border-teal-300 text-teal-950 space-y-1">
+                  <div className="font-bold flex items-center gap-1.5 text-teal-800">
+                    <CheckCircle2 className="w-4 h-4 text-teal-600" />
+                    <span>Certified Outstanding Dues</span>
+                  </div>
+                  <div>Student Roll: <strong>{claim.universityVerification.studentRollNo}</strong></div>
+                  <div>Certified Dues: <strong className="text-teal-900">{formatINR(claim.universityVerification.confirmedOutstandingFee)}</strong></div>
+                  {claim.universityVerification.verifiedBy && (
+                    <div className="text-[10px] text-teal-700">Audit by: {claim.universityVerification.verifiedBy}</div>
+                  )}
+                  <div className="text-[11px] text-teal-800 italic pt-1 border-t border-teal-200">
+                    "{claim.universityVerification.officerRemarks}"
+                  </div>
+                </div>
+              ) : claim.universityVerification?.status === 'DISCREPANCY' ? (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-300 text-rose-950 space-y-1">
+                  <div className="font-bold flex items-center gap-1.5 text-rose-800">
+                    <XCircle className="w-4 h-4 text-rose-600" />
+                    <span>Discrepancy Reported</span>
+                  </div>
+                  <div className="text-[11px] text-rose-800">
+                    {claim.universityVerification.officerRemarks || 'Discrepancy identified in student enrollment or fee ledger records.'}
+                  </div>
+                </div>
+              ) : claim.universityVerification?.status === 'REQUIRES_INFORMATION' ? (
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 space-y-1">
+                  <div className="font-bold flex items-center gap-1.5 text-amber-800">
+                    <AlertTriangle className="w-4 h-4 text-amber-600" />
+                    <span>Additional Documentation Needed</span>
+                  </div>
+                  <div className="text-[11px] text-amber-800">
+                    {claim.universityVerification.officerRemarks || 'Registrar requested supplementary fee vouchers.'}
+                  </div>
                 </div>
               ) : (
-                <p className="text-[11px] text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-200">
-                  Pending registrar ledger confirmation from university portal.
+                <p className="text-[11px] text-amber-800 bg-amber-50 p-2.5 rounded-lg border border-amber-200">
+                  ⏳ Awaiting registrar fee ledger confirmation from {claim.universityName} portal.
                 </p>
               )}
             </div>

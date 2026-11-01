@@ -12,6 +12,7 @@ export default defineConfig({
   },
   // @ts-ignore vitest config
   test: {
+    root: path.resolve(__dirname),
     globals: true,
     environment: 'jsdom',
     setupFiles: './tests/setup.ts',

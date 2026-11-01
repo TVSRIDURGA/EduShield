@@ -92,6 +92,17 @@ export const Navbar: React.FC = () => {
 
   const links = getNavLinks();
 
+  const getUniversityShortName = (univId?: string) => {
+    switch (univId) {
+      case 'univ_iitd': return 'IIT Delhi';
+      case 'univ_bits': return 'BITS Pilani';
+      case 'univ_nitt': return 'NIT Trichy';
+      case 'univ_du': return 'Univ of Delhi';
+      case 'univ_reva': return 'REVA Univ';
+      default: return 'Partner University';
+    }
+  };
+
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -146,7 +157,7 @@ export const Navbar: React.FC = () => {
                 {user?.universityId && role === 'university' && (
                   <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 font-semibold flex items-center gap-1">
                     <Building className="w-3 h-3" />
-                    IIT Delhi
+                    {getUniversityShortName(user.universityId)}
                   </span>
                 )}
               </div>
