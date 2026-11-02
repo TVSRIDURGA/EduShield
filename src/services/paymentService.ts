@@ -1,6 +1,6 @@
 import { ClaimsRepo, PoliciesRepo } from '../repositories/firestoreRepo';
 import { ClaimPayment, EducationClaim, UserProfile } from '../models/insurance';
-import { generatePaymentNumber } from '../utils/businessRules';
+import { generatePaymentNumber, isValidClaimTransition } from '../utils/businessRules';
 import { auditService } from './auditService';
 
 export const paymentService = {
@@ -9,6 +9,25 @@ export const paymentService = {
     authorizedOfficer: UserProfile,
     notes: string = 'Authorized university fee remittance'
   ): Promise<ClaimPayment> {
+    // PRIORITY 1 & 2: Role Authorization Guard
+    if (authorizedOfficer.role !== 'claims_officer' && authorizedOfficer.role !== 'admin') {
+      throw new Error('Unauthorized Operation: Only authorized Claims Officers or Administrators may disburse university fee remittance.');
+    }
+
+    // PRIORITY 2.5: Separation of Duties Guard
+    if (claim.guardianId === authorizedOfficer.id) {
+      throw new Error('Separation of Duties Violation: You cannot authorize or disburse claim settlement for your own family policy.');
+    }
+
+    // PRIORITY 2.1: Finite State Machine Transition Validation
+    if (claim.status !== 'APPROVED' && claim.status !== 'PAYMENT_PROCESSING') {
+      throw new Error(`Invalid Payment State: Claim must be in APPROVED or PAYMENT_PROCESSING status to disburse fee escrow, currently [${claim.status}].`);
+    }
+
+    if (!isValidClaimTransition(claim.status, 'PAID')) {
+      throw new Error(`Illegal state transition from ${claim.status} to PAID.`);
+    }
+
     const paymentNumber = generatePaymentNumber();
     const now = new Date();
     const transactionRef = `SIM-UTR-NEFT-${now.getFullYear()}${Math.floor(10000000 + Math.random() * 90000000)}`;

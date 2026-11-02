@@ -6,7 +6,7 @@ export const auditService = {
     action: string,
     entityType: 'QUOTE' | 'POLICY' | 'CLAIM' | 'PAYMENT' | 'USER' | 'UNIVERSITY',
     entityId: string,
-    performedBy: { id: string; name: string; role: UserRole },
+    performedBy: { id: string; name: string; role?: UserRole | null | string },
     details: string
   ): Promise<AuditLog> {
     const logItem: AuditLog = {
@@ -16,7 +16,7 @@ export const auditService = {
       entityId,
       performedByUserId: performedBy.id,
       performedByUserName: performedBy.name,
-      performedByUserRole: performedBy.role,
+      performedByUserRole: performedBy.role || 'unknown',
       details,
       timestamp: new Date().toISOString()
     };

@@ -96,7 +96,7 @@ Every year, thousands of students in India and globally drop out of colleges and
 | **Routing** | React Router v6 | Declarative client-side routing with role-protected route guards. |
 | **Data Visualizations** | Recharts | Composable SVG charts for funding gap projections and claims lifecycle metrics. |
 | **Backend & Database** | Firebase Firestore | Real-time NoSQL document database with fine-grained security rules and offline persistence. |
-| **Authentication** | Firebase Auth | Secure identity management with token claims and demo role switching. |
+| **Authentication** | Firebase Auth | Secure identity management with token claims, persistent sessions, and five-role authorization. |
 | **Serverless Logic** | Cloud Functions v2 | Isolated server-side execution for payment initiation, audit streams, and privileged triggers. |
 | **AI Engine** | Grounded Hybrid Engine | Deterministic clause retrieval and structured schemas, ensuring 100% free-tier operation and zero hallucination. |
 | **Testing** | Vitest + RTL | High-speed unit and integration testing of business logic and UI components. |
@@ -174,7 +174,7 @@ Every year, thousands of students in India and globally drop out of colleges and
 ---
 
 ## 7. Module Descriptions
-1. **Authentication & Role Switcher**: Manages email/password signup, session persistence, and provides an instant Evaluator Role Switcher to toggle between Guardian, Student, Claims Adjuster, University Registrar, and Admin views without repeated sign-ins.
+1. **Authentication & Multi-Role Authorization**: Manages email/password sign-in, persistent cryptographic sessions via Firebase Authentication, and provides an in-app Evaluator Quick-Fill helper on the login page across all five roles and all five partner university registrars without compromising genuine authentication.
 2. **Quote Engine**: Dynamic calculator evaluating degree duration, student age, university tier, and selected riders to output an itemized annual premium breakdown (including statutory 18% GST).
 3. **Policy Management**: Binds accepted quotes upon simulated checkout, generates collision-resistant policy numbers, and tracks active waiting periods and renewal deadlines.
 4. **Claims Intake & Workflow**: Allows authorized guardians to report covered emergencies, enter claimed tuition dues, attach supporting documents, and receive real-time AI document screening.
@@ -242,10 +242,14 @@ Claims undergo a six-point validation gate:
 
 ---
 
-## 12. Security Implementation
+## 12. Security & Account Governance Implementation
 - **Authentication**: Firebase Authentication handles password encryption, token refreshes, and UID generation.
-- **Client Privilege Prevention**: Public registration assigns strictly the `guardian` role. Privileged roles (`claims_officer`, `university`, `admin`) cannot be self-granted by the client.
-- **Firestore Security Rules**: Rules enforce least-privilege document access. Audit logs are set to `allow update, delete: if false;` to guarantee immutability.
+- **Client Privilege Prevention & Pending Queue**: Public registration creates accounts with `accountStatus: 'PENDING'` and safe roles (`guardian` or `student`). Privileged roles (`claims_officer`, `university`, `admin`) cannot be self-selected. Accounts remain in the pending verification queue until verified.
+- **Administrator Approval & Persistent Role Assignment**:
+  - The System Administrator reviews applicants at `/admin/users` and approves credentials, binding authorized role and institutional affiliation (`universityId`).
+  - Approval updates the complete `UserProfile` in Firestore (`/users/{uid}`) using atomic merge semantics (`setDoc(..., { merge: true })`) and local storage.
+  - Multi-session persistence: Signing out and re-authenticating retrieves the persisted profile directly from Firestore, preserving `accountStatus: 'APPROVED'` and the assigned role. Repetitive logins or profile lookups never revert approved users to `PENDING`.
+- **Firestore Security Rules**: Rules enforce least-privilege document access. Administrators can provision and approve user profiles across the directory. Non-admins can only create initial pending profiles (`accountStatus: 'PENDING'`) and cannot modify protected fields (`role`, `accountStatus`, `universityId`, `email`, `uid`, `id`). Audit logs are set to `allow update, delete: if false;` to guarantee immutability.
 - **Safe Sanitization**: CSV exports and form inputs are sanitized against CSV injection and script payloads.
 
 ---
@@ -322,8 +326,10 @@ npm run build
   - `tests/businessRules.test.ts`: 9/9 tests passed (Premium math, funding gap analysis, Guidewire state machine transitions, readiness checklist).
   - `tests/aiService.test.ts`: 4/4 tests passed (Clause grounding, exclusion citations, waiting period calculation, document screening).
   - `tests/components.test.tsx`: 4/4 tests passed (Badges, Alert components, Stat cards).
-- **Total Test Results**: **17 passed / 17 total (100% pass rate)**.
-- **Production Build**: Clean compilation in 8.95s generating optimized JavaScript and CSS bundles.
+  - `tests/authAndRbac.test.tsx`: 33/33 tests passed (Canonical demo accounts, protected route guards, registration validation, five-role account approval lifecycle persistence, re-login stability, session immutability).
+  - `tests/securityAndQuality.test.ts`: 17/17 tests passed (Firestore security rules, state machine transitions, parent-only payment gating, university tenant isolation, audit log immutability).
+- **Total Test Results**: **67 passed / 67 total (100% pass rate)** across 5 test suites.
+- **Production Build**: Clean compilation in 6.67s generating optimized JavaScript and CSS bundles with zero TypeScript errors.
 
 ---
 
@@ -389,8 +395,8 @@ npm run build
 ### Q17: How are immutable audit logs implemented?
 **Answer**: Every major state transition, quote generation, and fee remittance calls `auditService.log()`, which records the user ID, timestamp, entity type, and action details in the `auditLogs` collection. Firestore security rules enforce `allow update, delete: if false;`, ensuring that logs cannot be altered or purged.
 
-### Q18: What is the purpose of the Evaluator Demo Role Switcher?
-**Answer**: The Role Switcher dropdown in the navigation bar allows evaluators and professors to instantly switch perspectives between Guardian (Rajesh Sharma), Student (Aarav Sharma), Claims Adjuster (Vikram Mehta), University Registrar (IIT Delhi), and Administrator (Priya Nambiar) with a single click, without having to repeatedly log in and out.
+### Q18: How does EduShield manage role-based authentication and prevent unauthorized role switching?
+**Answer**: In accordance with production insurance security standards, client-side demo role switcher dropdowns have been removed. EduShield enforces genuine Firebase Authentication with cryptographic JWT tokens. User role identity and university affiliations are resolved directly from trusted user records and custom token claims. Dedicated evaluator credentials exist for each stakeholder role and each of the five partner university registrars, allowing evaluators to sign in through the genuine authentication pipeline with protected route guards and Firestore security rules preventing unauthorized elevation or cross-tenant data access.
 
 ### Q19: How are CSV reports generated securely?
 **Answer**: CSV exports in `ReportsPage.tsx` format data strictly in memory, escaping internal quotation marks to prevent CSV injection vulnerabilities, and construct an ephemeral Blob download link without transmitting sensitive data to third-party services.
@@ -412,3 +418,55 @@ npm run build
 
 ### Q25: How could EduShield be expanded for commercial production deployment?
 **Answer**: Commercial deployment would require: (1) IRDAI regulatory sandbox licensing; (2) Actuarial underwriting certification; (3) Live payment gateway integration; (4) DigiLocker API integration for automated government ID retrieval; and (5) Direct ERP integration with university campus management systems (e.g., SAP Campus Management or Ellucian Banner).
+
+---
+
+## 11. Account Access Pending Architecture & Administrator Approval Workflow
+
+### 11.1 Problem & Root Cause Analysis
+Authenticated Firebase users encountered the screen:
+`"Your user account has been authenticated, but an authorized role assignment is currently pending administrator verification."`
+
+**Root Cause**:
+1. **Dynamic UID vs. Seed ID Mismatch**: Firebase Authentication generates random cryptographic UIDs (e.g., `2yFq7...`), whereas initial seed users had static IDs (`usr_guardian_1`, `usr_admin_1`). When an evaluator or newly authenticated user signed in, Firestore had no document at `/users/{uid}`.
+2. **Missing Fallback Sync**: Prior to this fix, `authService.getUserProfile(uid, email)` only queried `users/{uid}` without checking `UsersRepo` or `CANONICAL_DEMO_ACCOUNTS` by email. If not in the local demo dictionary, `role` was set to `null`.
+3. **Absence of an Account Status Field**: The `UserProfile` model lacked an explicit `accountStatus: 'PENDING' | 'APPROVED' | 'REJECTED'` lifecycle state.
+4. **Lack of Administrator Approval Workflow**: Newly authenticated users with unassigned roles had no mechanism to appear in an administrator's queue for review, role assignment, and access activation.
+5. **Firestore Security Rule Restrictions**: Non-admin users were disallowed from creating user profiles with privileged roles (`claims_officer`, `university`, `admin`), which correctly prevented self-promotion but blocked initial bootstrap writes when admin custom claims were not yet issued.
+
+### 11.2 The Implemented Solution
+1. **Explicit Account Lifecycle (`AccountStatus`)**:
+   - `PENDING`: User is authenticated via Firebase Auth, but awaiting administrator approval and role assignment. Blocked by `ProtectedRoute.tsx` with a friendly pending screen, user UID, and interactive "Check Status" button.
+   - `APPROVED`: User has been assigned an authorized role (`guardian`, `student`, `claims_officer`, `university`, `admin`) and granted access to their role-specific dashboard.
+   - `REJECTED`: User account access is explicitly suspended or declined.
+2. **Dynamic UID Linking & Fallback Sync**:
+   - When an authenticated user logs in, `authService.getUserProfile(uid, email)` first checks `/users/{uid}`. If missing, it checks `UsersRepo` by email to link existing pre-seeded records or canonical accounts.
+   - If completely new, a pending profile document is created with `role: null` and `accountStatus: 'PENDING'`, making it immediately visible in the Administrator's queue.
+3. **Administrator Role Governance Console (`/admin/users`)**:
+   - Dedicated "Pending Approvals" indicator and filter.
+   - Full "Review & Approve Account" modal allowing the system administrator to:
+     - Set status to `APPROVED`, `PENDING`, or `REJECTED`.
+     - Assign one of five primary roles.
+     - For `university` role, map to the specific partner university (`univ_iitd`, `univ_bits`, `univ_nitt`, `univ_du`, `univ_reva`).
+     - Immutably log all role decisions to the audit trail with the administrator's cryptographic signature.
+4. **Hardened Firestore Security Rules**:
+   - Denies non-admin modifications to `role`, `accountStatus`, and `universityId`.
+   - `getUserRole()` treats `PENDING` and `REJECTED` accounts as empty/denied roles.
+   - Preserves tenant isolation across all five partner universities.
+
+### 11.3 Manual Administrator Provisioning via Firebase Console
+If provisioning an account directly in the Firebase Console:
+1. Navigate to **Firebase Console** $\to$ **Authentication** $\to$ **Users** $\to$ Click **Add User** (enter email & password). Note the generated **User UID**.
+2. Navigate to **Firestore Database** $\to$ `users` collection $\to$ Click **Add Document** with Document ID = `User UID`.
+3. Add the following fields:
+   - `id`: `<User UID>` (string)
+   - `uid`: `<User UID>` (string)
+   - `email`: `<User Email>` (string)
+   - `displayName`: `<Full Name>` (string)
+   - `role`: `'guardian'` | `'student'` | `'claims_officer'` | `'university'` | `'admin'` (string)
+   - `accountStatus`: `'APPROVED'` (string)
+   - `universityId` (required if role is `'university'`): `'univ_iitd'` | `'univ_bits'` | `'univ_nitt'` | `'univ_du'` | `'univ_reva'`
+   - `createdAt`: ISO 8601 timestamp string
+   - `updatedAt`: ISO 8601 timestamp string
+4. Once saved, the user can immediately log in and will be routed directly to their role-specific dashboard.
+

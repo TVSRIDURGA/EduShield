@@ -9,6 +9,15 @@ export const policyService = {
     guardian: UserProfile,
     paymentMethod: string = 'SIMULATED_NETBANKING'
   ): Promise<EducationPolicy> {
+    // PRIORITY 1.9: Payment initiation exclusive to authenticated Parent/Guardian
+    if (guardian.role !== 'guardian' && guardian.role !== 'admin') {
+      throw new Error('Unauthorized Operation: Premium payment initiation and policy binding are restricted exclusively to authenticated Parents/Guardians.');
+    }
+
+    if (quote.guardianId !== guardian.id && guardian.role !== 'admin') {
+      throw new Error('Ownership Violation: You can only bind policies for your own authorized quotes.');
+    }
+
     const policyNumber = generatePolicyNumber();
     const now = new Date();
     

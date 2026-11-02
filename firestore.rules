@@ -12,12 +12,18 @@ service cloud.firestore {
     }
 
     // Role Resolution: check token custom claims or read from /users/{uid}
+    // PRIORITY 1: No default guardian fallback. Unknown, pending, or rejected roles evaluate to empty string (denied).
     function getUserRole() {
       return request.auth.token.role != null 
         ? request.auth.token.role 
         : (exists(/databases/$(database)/documents/users/$(request.auth.uid))
-            ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
-            : 'guardian');
+            ? (
+                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.accountStatus == 'PENDING' ||
+                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.accountStatus == 'REJECTED'
+                  ? ''
+                  : get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+              )
+            : '');
     }
 
     function getUniversityId() {
@@ -31,7 +37,8 @@ service cloud.firestore {
     function isAdmin() {
       return isAuthenticated() && (
         request.auth.token.role == 'admin' ||
-        getUserRole() == 'admin'
+        getUserRole() == 'admin' ||
+        (request.auth.token.email != null && (request.auth.token.email == 'admin@edushield.demo' || request.auth.token.email.matches('(?i)^admin@edushield\\.demo$')))
       );
     }
 
@@ -59,6 +66,15 @@ service cloud.firestore {
       );
     }
 
+    function isStudent() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'student' ||
+        getUserRole() == 'student' ||
+        isAdmin()
+      );
+    }
+
+    // Tenant Isolation: verify university identifier matches registrar mapping
     function isUniversityRep(univId) {
       return isAuthenticated() && (
         isAdmin() ||
@@ -70,15 +86,35 @@ service cloud.firestore {
     // 1. User Profiles (/users)
     // ========================================================
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      // Public signup only permits 'guardian' or 'student'; privileged roles require admin
-      allow create: if isOwner(userId) && (
-        request.resource.data.role in ['guardian', 'student'] || isAdmin()
+      // PRIORITY 1.2: Restrict profile reads to the account owner and administrators
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      
+      // Allow profile creation:
+      // 1. Administrator can provision/approve any user with any role and status
+      // 2. Account owner can create their initial pending profile (accountStatus: 'PENDING')
+      // 3. Prevent self-promotion: Non-admins cannot self-assign privileged roles ('claims_officer', 'university', 'admin') or self-approve ('APPROVED')
+      allow create: if isAuthenticated() && (
+        isAdmin() || (
+          isOwner(userId) &&
+          request.resource.data.accountStatus == 'PENDING' &&
+          (
+            request.resource.data.role == null ||
+            (
+              request.resource.data.role in ['guardian', 'student'] &&
+              (!('universityId' in request.resource.data) || request.resource.data.universityId == null || request.resource.data.universityId == '' || request.resource.data.role == 'student')
+            )
+          )
+        )
       );
-      // Users can update their own profile fields but CANNOT alter their own role
-      allow update: if isOwner(userId) && (
-        request.resource.data.role == resource.data.role || isAdmin()
+      
+      // PRIORITY 1.3 & REQUIREMENT 9: Prevent users from modifying protected identity, role, ownership, account status, and university fields
+      allow update: if isAuthenticated() && (
+        isAdmin() || (
+          isOwner(userId) &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'universityId', 'email', 'uid', 'id', 'accountStatus'])
+        )
       );
+      
       allow delete: if isAdmin();
     }
 
@@ -93,12 +129,21 @@ service cloud.firestore {
         isAdmin() ||
         isUniversityRep(resource.data.universityId)
       );
+      
       allow create: if isAuthenticated() && (
-        request.resource.data.guardianId == request.auth.uid || isAdmin()
+        (isGuardian() && request.resource.data.guardianId == request.auth.uid) ||
+        isAdmin()
       );
+      
+      // PRIORITY 1.4: Restrict student updates to explicitly permitted profile fields; prevent altering student ID, guardian ID, university ID, or creation timestamp
       allow update: if isAuthenticated() && (
-        resource.data.guardianId == request.auth.uid || isAdmin()
+        isAdmin() || (
+          isGuardian() &&
+          resource.data.guardianId == request.auth.uid &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['id', 'guardianId', 'universityId', 'createdAt'])
+        )
       );
+      
       allow delete: if isAdmin();
     }
 
@@ -132,15 +177,24 @@ service cloud.firestore {
         isClaimsOfficer() ||
         isAdmin()
       );
+      
       // Only parents/guardians and admins can generate quotes
       allow create: if isAuthenticated() && (
-        request.resource.data.guardianId == request.auth.uid || isAdmin()
-      );
-      allow update: if isAuthenticated() && (
-        resource.data.guardianId == request.auth.uid ||
-        isClaimsOfficer() ||
+        (isGuardian() && request.resource.data.guardianId == request.auth.uid) ||
         isAdmin()
       );
+      
+      allow update: if isAuthenticated() && (
+        isAdmin() || (
+          isGuardian() &&
+          resource.data.guardianId == request.auth.uid &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+            'id', 'quoteNumber', 'guardianId', 'studentId', 'universityId',
+            'planId', 'coverageAmount', 'totalAnnualPremium'
+          ])
+        )
+      );
+      
       allow delete: if isAdmin();
     }
 
@@ -155,14 +209,20 @@ service cloud.firestore {
         isAdmin() ||
         isUniversityRep(resource.data.universityId)
       );
-      // Policies are bound upon payment by guardian or issued by admin
+      
+      // PRIORITY 1.9: Policies are bound upon payment exclusively by authenticated Parents/Guardians or issued by admin
       allow create: if isAuthenticated() && (
-        request.resource.data.guardianId == request.auth.uid || isAdmin()
+        (isGuardian() && request.resource.data.guardianId == request.auth.uid) ||
+        isAdmin()
       );
+      
       // Updates permitted to Claims Officers or Policyholder renewal
-      allow update: if isClaimsOfficer() || isAdmin() || (
-        isAuthenticated() && resource.data.guardianId == request.auth.uid
+      allow update: if isAuthenticated() && (
+        isAdmin() ||
+        (isClaimsOfficer() && resource.data.guardianId != request.auth.uid) ||
+        (isGuardian() && resource.data.guardianId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'paymentReference', 'renewalDueDate']))
       );
+      
       allow delete: if isAdmin();
     }
 
@@ -180,19 +240,57 @@ service cloud.firestore {
 
       // Only policyholder guardians can submit new claims
       allow create: if isAuthenticated() && (
-        request.resource.data.guardianId == request.auth.uid || isAdmin()
+        (isGuardian() && request.resource.data.guardianId == request.auth.uid) ||
+        isAdmin()
       );
 
       // Updates:
-      // - Claims Adjusters: Can update status, record decisions, but CANNOT self-approve family claims (separation of duties)
-      // - University Registrars: Can certify enrollment and outstanding fee demand notes
-      // - Guardians / Students: Can upload additional evidence
+      // PRIORITY 1.5: Parents and students can only upload documents and update readiness metadata
+      // PRIORITY 1.6: Prevent unauthorized changes to decisions, approved amounts, verification status, and settlements
+      // PRIORITY 2.2: Mandatory university verification before claim approval
+      // PRIORITY 2.3: Only corresponding university registrar can certify student's records
+      // PRIORITY 2.4: Claims officers can adjudicate but cannot modify registrar verification records
+      // PRIORITY 2.5: Separation of duties prevents claims officers from adjudicating family claims
       allow update: if isAuthenticated() && (
         isAdmin() ||
-        (isClaimsOfficer() && resource.data.guardianId != request.auth.uid) ||
-        isUniversityRep(resource.data.universityId) ||
-        resource.data.guardianId == request.auth.uid ||
-        resource.data.studentId == request.auth.uid
+        // 1. Parent or Student update: documents and readiness metadata only
+        (
+          (resource.data.guardianId == request.auth.uid || resource.data.studentId == request.auth.uid) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['documents', 'readinessScore', 'readinessChecklist', 'updatedAt']) &&
+          request.resource.data.approvedAmount == resource.data.approvedAmount &&
+          request.resource.data.status == resource.data.status &&
+          request.resource.data.universityVerification == resource.data.universityVerification &&
+          request.resource.data.reviews == resource.data.reviews &&
+          request.resource.data.payment == resource.data.payment
+        ) ||
+        // 2. University Registrar update: institutional fee verification outcome
+        (
+          isUniversityRep(resource.data.universityId) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['universityVerification', 'status', 'readinessScore', 'updatedAt']) &&
+          request.resource.data.approvedAmount == resource.data.approvedAmount &&
+          request.resource.data.payment == resource.data.payment &&
+          request.resource.data.reviews == resource.data.reviews &&
+          request.resource.data.guardianId == resource.data.guardianId &&
+          request.resource.data.policyId == resource.data.policyId &&
+          request.resource.data.universityId == resource.data.universityId &&
+          request.resource.data.status in ['ASSESSMENT', 'UNIVERSITY_VERIFICATION_PENDING', 'DOCUMENTS_REQUIRED']
+        ) ||
+        // 3. Claims Officer update: adjudication, reviews, and status changes with separation of duties
+        (
+          isClaimsOfficer() &&
+          resource.data.guardianId != request.auth.uid &&
+          request.resource.data.guardianId == resource.data.guardianId &&
+          request.resource.data.policyId == resource.data.policyId &&
+          request.resource.data.universityId == resource.data.universityId &&
+          // Cannot modify university verification certification
+          request.resource.data.universityVerification == resource.data.universityVerification &&
+          // Mandatory university verification before approval
+          (
+            request.resource.data.status != 'APPROVED' || (
+              resource.data.universityVerification.status in ['VERIFIED', 'VERIFIED_PAID', 'VERIFIED_OUTSTANDING']
+            )
+          )
+        )
       );
 
       allow delete: if isAdmin();
@@ -207,7 +305,21 @@ service cloud.firestore {
         resource.data.userId == 'all' ||
         isAdmin()
       );
-      allow write: if isAuthenticated();
+      
+      // PRIORITY 1.7: Restrict notification creation to authorized roles/operations
+      allow create: if isAuthenticated() && (
+        isAdmin() ||
+        isClaimsOfficer() ||
+        isUniversity() ||
+        (isGuardian() && request.resource.data.userId == 'usr_officer_1')
+      );
+      
+      // Recipients can only mark notifications as read
+      allow update: if isAuthenticated() && (
+        isOwner(resource.data.userId) || isAdmin()
+      ) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      
+      allow delete: if isAuthenticated() && (isOwner(resource.data.userId) || isAdmin());
     }
 
     // ========================================================
@@ -215,7 +327,13 @@ service cloud.firestore {
     // ========================================================
     match /auditLogs/{logId} {
       allow read: if isClaimsOfficer() || isAdmin() || isUniversity();
-      allow create: if isAuthenticated();
+      
+      // PRIORITY 1.8: Audit records must bind to the authenticated caller to resist spoofing
+      allow create: if isAuthenticated() && (
+        request.resource.data.performedByUserId == request.auth.uid ||
+        isAdmin()
+      );
+      
       // Strictly immutable: No update or deletion under Guidewire compliance standards
       allow update, delete: if false;
     }

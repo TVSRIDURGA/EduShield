@@ -110,9 +110,16 @@ export class Repository<T extends { id: string }> {
       const colRef = collection(db, this.collectionName);
       const snapshot = await getDocs(colRef);
       if (!snapshot.empty) {
-        const items = snapshot.docs.map((d: any) => ({ ...d.data(), id: d.id } as T));
-        this.setLocal(items);
-        return items;
+        const firestoreItems = snapshot.docs.map((d: any) => ({ ...d.data(), id: d.id } as T));
+        const local = this.getLocal();
+        // Merge: combine Firestore items with locally stored items by ID.
+        // Firestore takes precedence for overlapping IDs, but local non-synced items are preserved.
+        const mergedMap = new Map<string, T>();
+        local.forEach(item => mergedMap.set(item.id, item));
+        firestoreItems.forEach(item => mergedMap.set(item.id, item));
+        const merged = Array.from(mergedMap.values());
+        this.setLocal(merged);
+        return merged;
       }
     } catch (err) {
       console.warn(`Firestore read fallback to local cache for ${this.collectionName}:`, err);
@@ -125,7 +132,17 @@ export class Repository<T extends { id: string }> {
       const docRef = doc(db, this.collectionName, id);
       const snap = await getDoc(docRef);
       if (snap.exists()) {
-        return { ...snap.data(), id: snap.id } as T;
+        const item = { ...snap.data(), id: snap.id } as T;
+        // Keep local cache fresh with the latest document
+        const local = this.getLocal();
+        const idx = local.findIndex(i => i.id === id);
+        if (idx >= 0) {
+          local[idx] = item;
+        } else {
+          local.unshift(item);
+        }
+        this.setLocal(local);
+        return item;
       }
     } catch (err) {
       console.warn(`Firestore getById fallback for ${this.collectionName}/${id}:`, err);
@@ -146,7 +163,7 @@ export class Repository<T extends { id: string }> {
 
     try {
       const docRef = doc(db, this.collectionName, item.id);
-      await setDoc(docRef, item);
+      await setDoc(docRef, item, { merge: true });
     } catch (err) {
       console.warn(`Firestore write warning for ${this.collectionName}:`, err);
     }
@@ -156,15 +173,19 @@ export class Repository<T extends { id: string }> {
   async update(id: string, updates: Partial<T>): Promise<T | null> {
     const local = this.getLocal();
     const index = local.findIndex(i => i.id === id);
-    if (index === -1) return null;
-
-    const updated = { ...local[index], ...updates };
-    local[index] = updated;
+    let updated: T;
+    if (index === -1) {
+      updated = { id, ...updates } as T;
+      local.unshift(updated);
+    } else {
+      updated = { ...local[index], ...updates };
+      local[index] = updated;
+    }
     this.setLocal(local);
 
     try {
       const docRef = doc(db, this.collectionName, id);
-      await updateDoc(docRef, updates as any);
+      await setDoc(docRef, updates as any, { merge: true });
     } catch (err) {
       console.warn(`Firestore update warning for ${this.collectionName}/${id}:`, err);
     }

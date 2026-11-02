@@ -3,7 +3,7 @@ import { ClaimStatus, PolicyStatus, PaymentStatus, UserRole } from '../../models
 
 interface BadgeProps {
   status?: ClaimStatus | PolicyStatus | PaymentStatus | string;
-  role?: UserRole;
+  role?: UserRole | null;
   variant?: 'blue' | 'green' | 'amber' | 'red' | 'purple' | 'slate';
   children?: React.ReactNode;
   className?: string;
@@ -14,28 +14,33 @@ export const Badge: React.FC<BadgeProps> = ({ status, role, variant, children, c
   let text = children || '';
 
   // Determine variant based on status or role
-  if (role) {
-    switch (role) {
-      case 'guardian':
-        color = 'bg-blue-50 text-blue-700 border-blue-200';
-        text = text || 'Guardian';
-        break;
-      case 'student':
-        color = 'bg-teal-50 text-teal-700 border-teal-200';
-        text = text || 'Student';
-        break;
-      case 'claims_officer':
-        color = 'bg-purple-50 text-purple-700 border-purple-200';
-        text = text || 'Claims Officer';
-        break;
-      case 'university':
-        color = 'bg-amber-50 text-amber-700 border-amber-200';
-        text = text || 'University Rep';
-        break;
-      case 'admin':
-        color = 'bg-rose-50 text-rose-700 border-rose-200';
-        text = text || 'Administrator';
-        break;
+  if (role !== undefined) {
+    if (role === null) {
+      color = 'bg-amber-50 text-amber-700 border-amber-200';
+      text = text || 'Pending Role';
+    } else {
+      switch (role) {
+        case 'guardian':
+          color = 'bg-blue-50 text-blue-700 border-blue-200';
+          text = text || 'Guardian';
+          break;
+        case 'student':
+          color = 'bg-teal-50 text-teal-700 border-teal-200';
+          text = text || 'Student';
+          break;
+        case 'claims_officer':
+          color = 'bg-purple-50 text-purple-700 border-purple-200';
+          text = text || 'Claims Officer';
+          break;
+        case 'university':
+          color = 'bg-amber-50 text-amber-700 border-amber-200';
+          text = text || 'University Rep';
+          break;
+        case 'admin':
+          color = 'bg-rose-50 text-rose-700 border-rose-200';
+          text = text || 'Administrator';
+          break;
+      }
     }
   } else if (status) {
     let displayLabel = String(status);

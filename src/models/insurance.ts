@@ -57,14 +57,19 @@ export type ClaimDecision =
   | 'MORE_INFO_REQUESTED' 
   | 'ESCALATED';
 
+export type AccountStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
 export interface UserProfile {
   id: string;
   uid: string;
   email: string;
   displayName: string;
-  role: UserRole;
+  role: UserRole | null;
+  accountStatus?: AccountStatus;
   phoneNumber?: string;
   universityId?: string; // For university representatives
+  approvedAt?: string;
+  approvedBy?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -315,7 +320,7 @@ export interface AuditLog {
   entityId: string;
   performedByUserId: string;
   performedByUserName: string;
-  performedByUserRole: UserRole;
+  performedByUserRole: UserRole | string;
   details: string;
   timestamp: string;
 }

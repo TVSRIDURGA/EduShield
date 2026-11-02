@@ -34,6 +34,10 @@ export interface SubmitClaimInput {
 
 export const claimService = {
   async submitClaim(input: SubmitClaimInput, claimant: UserProfile): Promise<EducationClaim> {
+    if (claimant.role !== 'guardian' && claimant.role !== 'admin') {
+      throw new Error('Unauthorized Operation: Only authenticated Parents/Guardians may submit new education claims.');
+    }
+
     const policy = await PoliciesRepo.getById(input.policyId);
     if (!policy) throw new Error('Policy not found');
     if (policy.guardianId !== claimant.id && claimant.role !== 'admin') {
@@ -144,6 +148,11 @@ export const claimService = {
     const claim = await ClaimsRepo.getById(claimId);
     if (!claim) throw new Error('Claim not found');
 
+    const isAuthorized = claim.guardianId === user.id || claim.studentId === user.id || user.role === 'claims_officer' || user.role === 'admin';
+    if (!isAuthorized) {
+      throw new Error('Unauthorized Operation: You can only upload documents to your own authorized claim.');
+    }
+
     const newDoc: ClaimDocument = {
       id: `doc_${Date.now()}`,
       claimId,
@@ -251,6 +260,10 @@ export const claimService = {
       nextClaimStatus = 'DOCUMENTS_REQUIRED';
     }
 
+    if (nextClaimStatus !== claim.status && !isValidClaimTransition(claim.status, nextClaimStatus)) {
+      throw new Error(`Illegal state transition from ${claim.status} to ${nextClaimStatus}`);
+    }
+
     const updated = await ClaimsRepo.update(claimId, {
       universityVerification: updatedVerification,
       readinessScore,
@@ -304,6 +317,11 @@ export const claimService = {
   ): Promise<EducationClaim> {
     const claim = await ClaimsRepo.getById(claimId);
     if (!claim) throw new Error('Claim not found');
+
+    // PRIORITY 2.5: Separation of Duties Violation check
+    if (claim.guardianId === officer.id) {
+      throw new Error('Separation of Duties Violation: You cannot adjudicate or approve your own family claim.');
+    }
 
     // Rule: Claims Officer cannot approve a claim while university verification is pending, discrepancy, or incomplete
     if (decision === 'APPROVED') {

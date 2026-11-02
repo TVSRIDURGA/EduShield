@@ -10,6 +10,10 @@ export const quoteService = {
     plan: InsurancePlan,
     policyDurationYears: number
   ): Promise<Quote> {
+    if (guardian.role !== 'guardian' && guardian.role !== 'admin') {
+      throw new Error('Unauthorized Operation: Only authenticated Parents/Guardians or Administrators can generate policy quotes.');
+    }
+
     const studentAge = new Date().getFullYear() - new Date(student.dateOfBirth).getFullYear();
     
     const calc = calculatePremium({
