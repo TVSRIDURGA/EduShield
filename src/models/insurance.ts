@@ -6,13 +6,33 @@ export type UserRole = 'guardian' | 'student' | 'university' | 'claims_officer' 
 
 export type QuoteStatus = 'DRAFT' | 'GENERATED' | 'ACCEPTED' | 'EXPIRED';
 
+export type ProductStatus = 
+  | 'DRAFT' 
+  | 'UNDER_REVIEW' 
+  | 'APPROVED' 
+  | 'PUBLISHED' 
+  | 'SUSPENDED' 
+  | 'WITHDRAWN';
+
 export type PolicyStatus = 
+  | 'DRAFT'
+  | 'UNDER_REVIEW'
+  | 'APPROVED'
+  | 'PUBLISHED'
+  | 'QUOTE_GENERATED'
+  | 'APPLICATION_SUBMITTED'
+  | 'UNDERWRITING'
+  | 'PAYMENT_PENDING'
   | 'PENDING_PAYMENT' 
+  | 'ISSUED'
   | 'ACTIVE' 
   | 'RENEWAL_DUE' 
+  | 'RENEWED'
   | 'EXPIRED' 
   | 'CANCELLED' 
-  | 'SUSPENDED';
+  | 'SUSPENDED'
+  | 'LAPSED'
+  | 'REJECTED';
 
 export type ClaimStatus = 
   | 'DRAFT' 
@@ -90,6 +110,10 @@ export interface Student {
   studentIdNumber: string;
   annualTuitionFee: number;
   otherEligibleExpenses: number; // hostel, labs, examination
+  // Optional administrative / verification fields
+  department?: string;
+  enrollmentStatus?: 'ENROLLED' | 'DEFERRED' | 'WITHDRAWN' | 'GRADUATED';
+  verificationStatus?: 'PENDING' | 'VERIFIED' | 'REJECTED';
   createdAt: string;
   updatedAt: string;
 }
@@ -135,6 +159,298 @@ export interface PolicyBenefit {
   deductible: number;
 }
 
+// ========================================================
+// Comprehensive Enterprise Insurance Policy Architecture
+// ========================================================
+
+export type CoverageCategory = 
+  | 'PARENT_DEATH' 
+  | 'PARENT_DISABILITY' 
+  | 'CRITICAL_ILLNESS' 
+  | 'TUITION_PROTECTION' 
+  | 'EMERGENCY_MEDICAL' 
+  | 'EMERGENCY_TRAVEL' 
+  | 'HOSTEL_LIVING' 
+  | 'CAREER_CONTINUITY' 
+  | 'OTHER';
+
+export type RuleRequirementLevel = 'MANDATORY' | 'OPTIONAL' | 'CONDITIONAL';
+
+export type PaymentFrequency = 'ANNUAL' | 'SEMESTER' | 'QUARTERLY';
+
+export type RefundCalculationMethod = 
+  | 'PRO_RATA' 
+  | 'SHORT_PERIOD' 
+  | 'TIERED' 
+  | 'NO_REFUND_AFTER_CLAIM';
+
+export interface EligibilityCriteria {
+  minAge: number;
+  maxAge: number;
+  allowedAdmissionStatuses: string[];
+  requireActiveEnrollment: boolean;
+  allowedDegreeTypes: ('UNDERGRADUATE' | 'POSTGRADUATE' | 'DIPLOMA')[];
+  allowedCourseDurationsYears: number[];
+  allowedAcademicYears: number[];
+  eligibleInstitutionIds: string[]; // empty or contains 'ALL' = all verified institutions
+  allowedResidencies: string[];
+  allowedStates: string[];
+  requireStudentIdProof: boolean;
+  requireParentIdProof: boolean;
+  requireRelationshipProof: boolean;
+  requireAdmissionLetter: boolean;
+  requireEnrollmentCertificate: boolean;
+  requireUniversityVerification: boolean;
+  ruleRequirementLevel: Record<string, RuleRequirementLevel>;
+}
+
+export interface CoverageBenefitConfig {
+  id: string;
+  category: CoverageCategory;
+  name: string;
+  description: string;
+  benefitAmount: number;
+  maxBenefitAmount: number;
+  perEventLimit: number;
+  annualLimit: number;
+  aggregateLimit: number;
+  waitingPeriodDays: number;
+  requiredClaimDocuments: DocumentType[];
+  geographicRestrictions: string[];
+  benefitRecipient: 'UNIVERSITY_DIRECT' | 'STUDENT' | 'GUARDIAN';
+  isOptionalAddon: boolean;
+  addonPremium: number;
+}
+
+export interface PolicyExclusionConfig {
+  id: string;
+  title: string;
+  detailedExplanation: string;
+  applicableCategory: CoverageCategory | 'ALL';
+  applicableConditions: string;
+  exceptions?: string;
+  effectivePeriod?: string;
+}
+
+export interface FinancialLimitsConfig {
+  sumInsured: number;
+  maxCoverageLimit: number;
+  perEventLimit: number;
+  annualClaimLimit: number;
+  aggregateClaimLimit: number;
+  deductibleAmount: number;
+  coPaymentPercent: number;
+  maxPayableBenefit: number;
+  minClaimAmount: number;
+  sublimits: { benefitCategory: string; limitAmount: number; description?: string }[];
+}
+
+export interface AgeFactorBand {
+  minAge: number;
+  maxAge: number;
+  factor: number;
+  description?: string;
+}
+
+export interface DurationFactorBand {
+  durationYears: number;
+  factor: number;
+  discountPercent: number;
+}
+
+export interface PremiumCalculationConfig {
+  basePremium: number;
+  baseRatePercent: number;
+  ageBands: AgeFactorBand[];
+  durationFactors: DurationFactorBand[];
+  taxRatePercent: number; // e.g. 18 for GST
+  minPremium: number;
+  maxPremium: number;
+  availableFrequencies: PaymentFrequency[];
+  frequencyMultipliers: Record<PaymentFrequency, number>;
+  discounts: { code: string; name: string; discountPercent: number; description: string }[];
+}
+
+export interface PolicyIssuanceRequirements {
+  requireAuthentication: boolean;
+  requireEligibilityVerification: boolean;
+  requireInstitutionEligibility: boolean;
+  requireIdentityVerification: boolean;
+  requireEnrollmentProof: boolean;
+  requireMandatoryDeclarations: boolean;
+  requireTermsAcceptance: boolean;
+  requirePremiumPayment: boolean;
+  requireUnderwritingApproval: boolean;
+}
+
+export interface RenewalConditionsConfig {
+  isRenewable: boolean;
+  renewalWindowDays: number; // e.g. 30 days before expiry
+  gracePeriodDays: number; // e.g. 15 days after expiry
+  reinstatementAllowed: boolean;
+  reinstatementPeriodDays: number;
+  requiresReVerification: boolean;
+  renewalDiscountPercent: number;
+  noticeBeforeExpiryDays: number;
+}
+
+export interface CancellationConditionsConfig {
+  allowPolicyholderCancellation: boolean;
+  freeLookPeriodDays: number; // e.g. 15 days
+  noticePeriodDays: number; // e.g. 15 days
+  refundMethod: RefundCalculationMethod;
+  minRetainedPremiumPercent: number;
+  noRefundIfClaimsMade: boolean;
+  cancellationReasons: string[];
+}
+
+export interface PolicyTermsAndConditions {
+  version: string;
+  effectiveDate: string;
+  policyholderResponsibilities: string[];
+  insuredStudentResponsibilities: string[];
+  disclosureObligations: string;
+  waitingPeriodClauses: string;
+  claimNotificationPeriodDays: number;
+  claimSubmissionTimelineDays: number;
+  benefitLimitations: string[];
+  disputeResolutionProcess: string;
+  grievanceContact: {
+    name: string;
+    designation: string;
+    email: string;
+    phone: string;
+    address: string;
+  };
+  applicableJurisdiction: string;
+}
+
+export interface InsuranceProduct {
+  id: string;
+  code: string;
+  name: string;
+  tier: 'BASIC' | 'COMPREHENSIVE' | 'PREMIUM';
+  category: 'FOUNDATION' | 'COMPREHENSIVE' | 'SCHOLAR_ELITE' | 'SPECIALIZED';
+  shortDescription: string;
+  detailedDescription: string;
+  policyPurpose: string;
+  targetCustomerSegment: string;
+  eligibleStudentCategories: string[];
+  applicableInstitutions: string[]; // University IDs or ['ALL']
+  applicableAcademicProgrammes: string[];
+  applicableAdmissionCategories: string[];
+  policyDurationYearsOptions: number[];
+  currentVersion: string;
+  status: ProductStatus;
+  effectiveDate: string;
+  expiryDate: string;
+  
+  eligibilityCriteria: EligibilityCriteria;
+  coverageBenefits: CoverageBenefitConfig[];
+  exclusions: PolicyExclusionConfig[];
+  financialLimits: FinancialLimitsConfig;
+  premiumConfig: PremiumCalculationConfig;
+  issuanceRequirements: PolicyIssuanceRequirements;
+  renewalConditions: RenewalConditionsConfig;
+  cancellationConditions: CancellationConditionsConfig;
+  termsAndConditions: PolicyTermsAndConditions;
+  
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt?: string;
+}
+
+export interface PolicyVersion {
+  id: string;
+  productId: string;
+  productCode: string;
+  versionNumber: string;
+  status: ProductStatus;
+  effectiveDate: string;
+  expiryDate?: string;
+  changeNotes: string;
+  productSnapshot: InsuranceProduct;
+  approvedBy?: string;
+  approvedAt?: string;
+  createdAt: string;
+}
+
+export interface TermsAcceptanceRecord {
+  userId: string;
+  userEmail: string;
+  policyId: string;
+  policyVersion: string;
+  acceptedAt: string;
+  ipAddress?: string;
+  declarationConfirmed: boolean;
+}
+
+export interface CancellationRecord {
+  id: string;
+  policyId: string;
+  requestedByUserId: string;
+  requestedByUserRole: string;
+  requestedAt: string;
+  effectiveDate: string;
+  cancellationReason: string;
+  refundMethod: RefundCalculationMethod;
+  eligibleRefundAmount: number;
+  refundStatus: 'PENDING' | 'APPROVED' | 'PROCESSED' | 'REJECTED';
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectionReason?: string;
+  notes?: string;
+}
+
+export interface RenewalRecord {
+  id: string;
+  policyId: string;
+  renewalNumber: string;
+  previousExpiryDate: string;
+  newExpiryDate: string;
+  renewalPremium: number;
+  paidAt: string;
+  paymentReference: string;
+  status: 'COMPLETED' | 'PENDING' | 'LAPSED';
+}
+
+export interface PolicyStateTransitionRecord {
+  id: string;
+  fromStatus: PolicyStatus;
+  toStatus: PolicyStatus;
+  actorId: string;
+  actorName: string;
+  actorRole: UserRole | string;
+  timestamp: string;
+  reason: string;
+}
+
+export interface PolicyTransaction {
+  id: string;
+  transactionNumber: string;
+  policyId: string;
+  policyNumber: string;
+  type: 'INITIAL_PREMIUM' | 'RENEWAL_PREMIUM' | 'CANCELLATION_REFUND' | 'CLAIM_DISBURSEMENT';
+  amount: number;
+  paymentMethod: string;
+  status: PaymentStatus;
+  reference: string;
+  timestamp: string;
+  metadata?: Record<string, any>;
+}
+
+export interface EligibilityValidationResult {
+  isEligible: boolean;
+  reasons: string[];
+  checks: {
+    criterion: string;
+    passed: boolean;
+    reason: string;
+    level: RuleRequirementLevel;
+  }[];
+}
+
 export interface Quote {
   id: string;
   quoteNumber: string;
@@ -148,6 +464,9 @@ export interface Quote {
   courseName: string;
   planId: string;
   planName: string;
+  productId?: string;
+  productCode?: string;
+  policyVersion?: string;
   coverageAmount: number;
   policyDurationYears: number;
   annualTuitionFee: number;
@@ -158,6 +477,12 @@ export interface Quote {
   riskFactorAdjustment: number;
   taxAmount: number; // GST 18% in India
   totalAnnualPremium: number;
+  
+  // Selected add-on costs
+  selectedAddons?: CoverageBenefitConfig[];
+  addonPremiumTotal?: number;
+  frequency?: PaymentFrequency;
+  frequencyPayableAmount?: number;
   
   status: QuoteStatus;
   waitingPeriodDays: number;
@@ -182,6 +507,12 @@ export interface EducationPolicy {
   planId: string;
   planName: string;
   
+  // Enterprise Product & Version snapshot
+  productId?: string;
+  productCode?: string;
+  policyVersion?: string;
+  versionSnapshot?: InsuranceProduct;
+  
   coverageAmount: number;
   totalAnnualPremium: number;
   effectiveDate: string;
@@ -193,7 +524,20 @@ export interface EducationPolicy {
   
   benefits: PolicyBenefit[];
   exclusions: string[];
+  selectedAddonBenefits?: CoverageBenefitConfig[];
+  financialLimitsSnapshot?: FinancialLimitsConfig;
   paymentReference?: string;
+  paymentFrequency?: PaymentFrequency;
+  
+  // Contractual Terms & Acceptance
+  termsAcceptance?: TermsAcceptanceRecord;
+  termsWordingSnapshot?: PolicyTermsAndConditions;
+  
+  // Lifecycle Management Records
+  cancellationRecord?: CancellationRecord;
+  renewalHistory?: RenewalRecord[];
+  stateHistory?: PolicyStateTransitionRecord[];
+  
   createdAt: string;
   updatedAt: string;
 }
@@ -316,13 +660,15 @@ export interface EducationClaim {
 export interface AuditLog {
   id: string;
   action: string;
-  entityType: 'QUOTE' | 'POLICY' | 'CLAIM' | 'PAYMENT' | 'USER' | 'UNIVERSITY';
+  entityType: 'QUOTE' | 'POLICY' | 'CLAIM' | 'PAYMENT' | 'USER' | 'UNIVERSITY' | 'PRODUCT' | 'POLICY_VERSION' | 'TRANSACTION';
   entityId: string;
   performedByUserId: string;
   performedByUserName: string;
   performedByUserRole: UserRole | string;
   details: string;
   timestamp: string;
+  previousValue?: any;
+  newValue?: any;
 }
 
 export interface NotificationItem {

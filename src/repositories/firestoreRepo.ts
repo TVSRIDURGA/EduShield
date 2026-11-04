@@ -21,6 +21,10 @@ import {
   SEED_NOTIFICATIONS, 
   DEMO_USERS 
 } from '../utils/seedData';
+import {
+  SEED_ENTERPRISE_PRODUCTS,
+  SEED_ENTERPRISE_VERSIONS
+} from '../utils/enterpriseSeedData';
 import { 
   Quote, 
   EducationPolicy, 
@@ -28,6 +32,9 @@ import {
   Student, 
   University, 
   InsurancePlan, 
+  InsuranceProduct,
+  PolicyVersion,
+  PolicyTransaction,
   AuditLog, 
   NotificationItem, 
   UserProfile 
@@ -35,6 +42,9 @@ import {
 
 const STORAGE_KEYS = {
   PLANS: 'edushield_plans',
+  PRODUCTS: 'edushield_insurance_products',
+  VERSIONS: 'edushield_policy_versions',
+  TRANSACTIONS: 'edushield_policy_transactions',
   UNIVERSITIES: 'edushield_universities',
   STUDENTS: 'edushield_students',
   QUOTES: 'edushield_quotes',
@@ -50,6 +60,15 @@ function ensureLocalSeed() {
   if (typeof window === 'undefined') return;
   if (!localStorage.getItem(STORAGE_KEYS.PLANS)) {
     localStorage.setItem(STORAGE_KEYS.PLANS, JSON.stringify(SEED_PLANS));
+  }
+  if (!localStorage.getItem(STORAGE_KEYS.PRODUCTS)) {
+    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(SEED_ENTERPRISE_PRODUCTS));
+  }
+  if (!localStorage.getItem(STORAGE_KEYS.VERSIONS)) {
+    localStorage.setItem(STORAGE_KEYS.VERSIONS, JSON.stringify(SEED_ENTERPRISE_VERSIONS));
+  }
+  if (!localStorage.getItem(STORAGE_KEYS.TRANSACTIONS)) {
+    localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify([]));
   }
   if (!localStorage.getItem(STORAGE_KEYS.UNIVERSITIES)) {
     localStorage.setItem(STORAGE_KEYS.UNIVERSITIES, JSON.stringify(SEED_UNIVERSITIES));
@@ -214,6 +233,9 @@ export class Repository<T extends { id: string }> {
 
 // Export Singleton Repositories
 export const PlansRepo = new Repository<InsurancePlan>('insurancePlans', STORAGE_KEYS.PLANS);
+export const ProductsRepo = new Repository<InsuranceProduct>('insuranceProducts', STORAGE_KEYS.PRODUCTS);
+export const PolicyVersionsRepo = new Repository<PolicyVersion>('policyVersions', STORAGE_KEYS.VERSIONS);
+export const PolicyTransactionsRepo = new Repository<PolicyTransaction>('policyTransactions', STORAGE_KEYS.TRANSACTIONS);
 export const UniversitiesRepo = new Repository<University>('universities', STORAGE_KEYS.UNIVERSITIES);
 export const StudentsRepo = new Repository<Student>('students', STORAGE_KEYS.STUDENTS);
 export const QuotesRepo = new Repository<Quote>('quotes', STORAGE_KEYS.QUOTES);

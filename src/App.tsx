@@ -15,6 +15,7 @@ import { NewQuotePage } from './pages/quotes/NewQuotePage';
 import { QuoteDetailPage } from './pages/quotes/QuoteDetailPage';
 import { PolicyListPage } from './pages/policies/PolicyListPage';
 import { PolicyDetailPage } from './pages/policies/PolicyDetailPage';
+import { PolicyComparePage } from './pages/policies/PolicyComparePage';
 import { ClaimListPage } from './pages/claims/ClaimListPage';
 import { NewClaimPage } from './pages/claims/NewClaimPage';
 import { ClaimDetailPage } from './pages/claims/ClaimDetailPage';
@@ -84,6 +85,14 @@ export const App: React.FC = () => {
             />
 
             {/* Policies (All authenticated users scoped to their authorization) */}
+            <Route 
+              path="/policies/compare" 
+              element={
+                <ProtectedRoute>
+                  <AppLayout><PolicyComparePage /></AppLayout>
+                </ProtectedRoute>
+              } 
+            />
             <Route 
               path="/policies" 
               element={

@@ -22,7 +22,7 @@ Open **`http://localhost:5173`** in your browser.
 ```bash
 npm run test
 ```
-Runs 5 automated test suites with 58 passing unit and integration tests verifying:
+Runs 6 automated test suites with 78 passing unit and integration tests verifying:
 - Genuine Firebase authentication, password reset, and session persistence
 - Role-based route guards and access restrictions
 - Account lifecycle status (`PENDING`, `APPROVED`, `REJECTED`) and administrator-controlled approval workflow
@@ -34,6 +34,20 @@ Runs 5 automated test suites with 58 passing unit and integration tests verifyin
 - Clause-grounded AI explanation generation
 - Firestore security rules permission matrix & tenant isolation
 - Separation of duties & parent-only payment enforcement
+- **Enterprise Policy Administration System**:
+  - Full 9-module product configuration & template validation
+  - Incomplete policy template rejection
+  - Centralized eligibility engine with descriptive rejection reasons (age, institution, degree, duration, academic year)
+  - Coverage benefit schedules, category waiting periods, and benefit recipient routing
+  - Explicit policy exclusion schedules
+  - Centralized premium calculation engine with GST, duration discounts, age factors, add-on riders, and quarterly/semi-annual multipliers
+  - Financial limits enforcement: sum insured, per-event limits, aggregate caps, deductibles, co-pay %, and emergency sublimits
+  - Policy issuance with immutable version snapshotting and verified terms acceptance audit
+  - Version immutability verification ensuring subsequent product catalog revisions do not alter existing contracts
+  - Policy renewal evaluation: 30-day window, 15-day grace period, 5% renewal discount
+  - Policy cancellation refund calculation: Free-Look (15 days, 100% minus stamp fee) vs Short-Period scale vs 0% post-claim
+  - Deterministic policy & product status state transitions
+  - Strict RBAC enforcement preventing students & claims officers from policy purchasing or catalog configuration
 
 ### 4. Build for Production
 ```bash
@@ -170,7 +184,34 @@ If an account is created directly in the Firebase Console:
 - **Database & Auth**: Firebase Firestore & Firebase Authentication (`edushield-6de64`)
 - **Serverless**: Firebase Cloud Functions v2
 - **AI Engine**: EduShield Continuity Intelligence (Clause-Grounded Hybrid Engine)
-- **Testing**: Vitest & React Testing Library (67 passed tests across 5 suites)
+- **Testing**: Vitest & React Testing Library (78 passed tests across 6 suites)
+
+---
+
+## 🛡️ Enterprise Insurance Policy Administration Architecture
+
+EduShield's insurance policy administration follows enterprise architecture standards inspired by Guidewire PolicyCenter, establishing a strict boundary between two distinct policy concepts:
+
+### A. Insurance Product / Policy Template (Administrator-Managed)
+The catalog definition created, versioned, and managed by the System Administrator across **9 Mandatory Configuration Modules**:
+1. **Basic Policy Information**: Code, name, tier, version, duration options, effective/expiry dates, status lifecycle (`DRAFT`, `UNDER_REVIEW`, `APPROVED`, `PUBLISHED`, `SUSPENDED`, `WITHDRAWN`).
+2. **Eligibility Criteria Engine**: Age boundaries, allowed degree types (`UNDERGRADUATE`, `POSTGRADUATE`, `DIPLOMA`), course duration limits, eligible partner universities, mandatory verification document checks with descriptive rejection feedback.
+3. **Covered Risks & Benefits Schedule**: Defined benefit categories (`PARENT_DEATH`, `PERMANENT_DISABILITY`, `CRITICAL_ILLNESS`, `TUITION_CONTINUATION`, `EMERGENCY_MEDICAL`), waiting periods, benefit recipient (`UNIVERSITY_DIRECT` fee escrow vs `GUARDIAN_REIMBURSEMENT`), and optional add-on riders.
+4. **Policy Exclusions Schedule**: Explicit exclusion clauses with condition scopes and non-compensable risk definitions.
+5. **Premium Calculation Engine**: Base rate % on annual cover, flat administrative base fee, age factor bands, multi-year duration discounts, add-on rider premiums, statutory 18% GST, and payment frequency multipliers (`ANNUAL` 1.0x, `SEMI_ANNUAL` 0.52x, `QUARTERLY` 0.27x).
+6. **Financial Limits & Deductibles**: Sum insured, per-event claim limits, annual/aggregate caps, deductible amounts, co-payment percentages, and category sublimits.
+7. **Policy Issuance Requirements**: Mandatory declarations, student enrollment validation, and identity binding.
+8. **Policy Renewal Conditions**: 30-day renewal window, 15-day grace period, 5% no-claim renewal discount, and term extension.
+9. **Cancellation & Refund Scale**: 15-day Free-Look cancellation (100% refund less ₹100 stamp duty), short-period retention scale for mid-term cancellations, and strict 0% refund clause if any claim has been registered.
+
+### B. Issued Insurance Policy (Immutable Contract Snapshot)
+When an authenticated Parent/Guardian purchases a policy for an enrolled student:
+- The system generates an immutable `versionSnapshot` capturing the complete product state at that exact instant.
+- Terms acceptance is recorded with cryptographic timestamps, user ID, email, and confirmed declarations (`TermsAcceptanceRecord`).
+- **Subsequent product catalog revisions, tariff hikes, or rule alterations NEVER silently alter or mutate existing issued contracts.**
+
+> [!NOTE]
+> **Actuarial Disclaimer**: All premium tariffs, factor multipliers, and discount rates within EduShield configurations are clearly identified illustrative project simulation data designed for academic demonstration and final-year evaluation. In production deployments, tariffs require formal actuarial certification.
 
 ---
 

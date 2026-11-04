@@ -4,7 +4,7 @@ import { AuditLog, UserRole } from '../models/insurance';
 export const auditService = {
   async log(
     action: string,
-    entityType: 'QUOTE' | 'POLICY' | 'CLAIM' | 'PAYMENT' | 'USER' | 'UNIVERSITY',
+    entityType: AuditLog['entityType'],
     entityId: string,
     performedBy: { id: string; name: string; role?: UserRole | null | string },
     details: string
