@@ -55,6 +55,7 @@ import { StatCard } from '../../components/common/StatCard';
 import { Badge } from '../../components/common/Badge';
 import { Alert } from '../../components/common/Alert';
 import { LoadingSkeleton } from '../../components/common/LoadingSkeleton';
+import { ParentInsuranceExperience } from '../../components/guardian/ParentInsuranceExperience';
 
 export const DashboardPage: React.FC = () => {
   const { user, role } = useAuth();
@@ -201,267 +202,29 @@ export const DashboardPage: React.FC = () => {
 
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Welcome Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-gradient-to-r from-brand-900 via-brand-800 to-teal-800 rounded-2xl p-6 text-white shadow-xl">
-          <div>
-            <div className="flex items-center gap-2 text-teal-300 text-xs font-semibold uppercase tracking-wider mb-1">
-              <ShieldCheck className="w-4 h-4" />
-              <span>Parent / Guardian Portal</span>
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              Welcome back, {user?.displayName}
-            </h1>
-            <p className="text-slate-300 text-sm mt-1 max-w-xl">
-              Your registered family education policies and college fee protections are active and monitored.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => setRegisterChildModalOpen(true)}
-              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs border border-white/20 transition backdrop-blur"
-            >
-              <UserPlus className="w-4 h-4 text-teal-300" />
-              <span>Register Child</span>
-            </button>
-            <Link
-              to="/quotes/new"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-900 font-semibold text-xs shadow-md transition"
-            >
-              <PlusCircle className="w-4 h-4" />
-              <span>Get Policy Quote</span>
-            </Link>
-            <Link
-              to="/claims/new"
-              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold text-xs shadow-md transition"
-            >
-              <FileText className="w-4 h-4" />
-              <span>Submit Claim</span>
-            </Link>
-          </div>
-        </div>
+        <ParentInsuranceExperience
+          policies={myPolicies}
+          claims={myClaims}
+          students={myStudents.length > 0 ? myStudents : students.filter(s => s.guardianId === user?.id || (isCanonicalDemo && s.guardianId === 'usr_guardian_1'))}
+          universities={universities}
+          onRegisterChild={() => setRegisterChildModalOpen(true)}
+          onRefreshData={() => {
+            Promise.all([
+              PoliciesRepo.getAll(),
+              ClaimsRepo.getAll(),
+              StudentsRepo.getAll()
+            ]).then(([p, c, s]) => {
+              setPolicies(p);
+              setClaims(c);
+              setStudents(s);
+            });
+          }}
+        />
 
-        {/* Metric Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          <StatCard
-            title="Total Active Cover"
-            value={formatINR(totalCoverage)}
-            subtitle="Combined across covered children"
-            icon={ShieldCheck}
-            color="blue"
-          />
-          <StatCard
-            title="Active Policies"
-            value={activePoliciesCount}
-            subtitle="Zero lapses recorded"
-            icon={CheckCircle2}
-            color="emerald"
-            trend="100% In-Force"
-            trendType="positive"
-          />
-          <StatCard
-            title="Registered Children"
-            value={myStudents.length}
-            subtitle="Higher education records"
-            icon={GraduationCap}
-            color="teal"
-          />
-          <StatCard
-            title="Active Claims"
-            value={pendingClaimsCount}
-            subtitle="Under review & university verification"
-            icon={FileText}
-            color="amber"
-          />
-        </div>
 
-        {/* Active Policies & Claims Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Policies Column */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <ShieldCheck className="w-5 h-5 text-brand-600" />
-                  <span>My Education Policies</span>
-                </h3>
-                <Link to="/policies" className="text-xs font-semibold text-brand-600 hover:text-brand-700 flex items-center gap-1">
-                  View All <ChevronRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
 
-              {myPolicies.length === 0 ? (
-                <div className="text-center py-8 text-sm text-slate-500">
-                  No policies bound yet. <Link to="/quotes/new" className="text-brand-600 font-semibold underline">Get your child's first quote</Link>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {myPolicies.map((pol) => (
-                    <div 
-                      key={pol.id} 
-                      className="p-4 rounded-xl border border-slate-200/80 hover:border-brand-300 bg-slate-50/50 hover:bg-white transition shadow-xs"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-900 text-sm">{pol.studentName}</span>
-                            <Badge status={pol.status} />
-                          </div>
-                          <div className="text-xs text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
-                            <span>{pol.universityName}</span>
-                            <span>•</span>
-                            <span className="font-mono text-slate-600">{pol.policyNumber}</span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-base font-bold text-brand-700">{formatINR(pol.coverageAmount)}</div>
-                          <div className="text-[11px] text-slate-500">Premium: {formatINR(pol.totalAnnualPremium)}/yr (Paid)</div>
-                        </div>
-                      </div>
 
-                      <div className="mt-3 pt-3 border-t border-slate-200/60 flex items-center justify-between text-xs text-slate-500">
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5 text-slate-400" />
-                          Valid till {formatDate(pol.expiryDate)}
-                        </span>
-                        <Link 
-                          to={`/policies/${pol.id}`}
-                          className="font-semibold text-brand-600 hover:text-brand-700 flex items-center gap-1"
-                        >
-                          Certificate Details <ArrowRight className="w-3 h-3" />
-                        </Link>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
 
-            {/* Claims History */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-amber-600" />
-                  <span>Recent Claims & Status Progress</span>
-                </h3>
-                <Link to="/claims" className="text-xs font-semibold text-brand-600 hover:text-brand-700 flex items-center gap-1">
-                  View Claims <ChevronRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-
-              {myClaims.length === 0 ? (
-                <div className="text-center py-6 text-sm text-slate-500">
-                  No claims submitted. Your covered students are in good standing.
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {myClaims.map((claim) => (
-                    <div 
-                      key={claim.id} 
-                      className="p-4 rounded-xl border border-slate-200 bg-white hover:border-amber-300 transition"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="font-semibold text-slate-900 text-sm">
-                            {claim.claimType.replace('_', ' ')} — {claim.studentName}
-                          </div>
-                          <div className="text-xs text-slate-500 mt-0.5">
-                            Claim #{claim.claimNumber} • Filed on {formatDate(claim.createdAt)}
-                          </div>
-                        </div>
-                        <Badge status={claim.status} />
-                      </div>
-
-                      <div className="mt-3 flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2">
-                          <span className="text-slate-500">AI Readiness Score:</span>
-                          <span className="font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
-                            {claim.readinessScore}%
-                          </span>
-                        </div>
-                        <Link 
-                          to={`/claims/${claim.id}`}
-                          className="font-semibold text-brand-600 hover:text-brand-700 flex items-center gap-1"
-                        >
-                          Track Claim <ChevronRight className="w-3.5 h-3.5" />
-                        </Link>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Quick AI & Continuity Intelligence Sidebar */}
-          <div className="space-y-6">
-            {/* Registered Family Members */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                  <GraduationCap className="w-4 h-4 text-teal-600" />
-                  <span>My Covered Children</span>
-                </h4>
-                <button
-                  onClick={() => setRegisterChildModalOpen(true)}
-                  className="text-xs font-semibold text-brand-600 hover:text-brand-700 flex items-center gap-1"
-                >
-                  <PlusCircle className="w-3.5 h-3.5" /> Add
-                </button>
-              </div>
-
-              {myStudents.length === 0 ? (
-                <div className="text-xs text-slate-500 py-3 text-center">
-                  No child profile linked yet. Click Add to register your child.
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  {myStudents.map(s => (
-                    <div key={s.id} className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
-                      <div className="font-bold text-slate-900">{s.fullName}</div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">{s.universityName}</div>
-                      <div className="text-[11px] text-teal-700 font-medium mt-0.5">{s.courseName} (Yr {s.currentAcademicYear})</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="bg-gradient-to-br from-teal-50 via-white to-blue-50 rounded-2xl border border-teal-200/80 p-6 shadow-sm">
-              <div className="flex items-center gap-2 text-teal-800 font-bold text-sm mb-2">
-                <Sparkles className="w-4 h-4 text-teal-600" />
-                <span>EduShield Continuity Intelligence</span>
-              </div>
-              <h4 className="text-lg font-bold text-slate-900">
-                Education Funding-Gap Calculator
-              </h4>
-              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                Project multi-year degree liabilities, inflation adjustments, and insurance cushions.
-              </p>
-              <Link
-                to="/continuity"
-                className="mt-4 w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold text-xs shadow-sm transition"
-              >
-                Open Funding-Gap Simulator <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-              <div className="flex items-center gap-2 text-brand-800 font-bold text-sm mb-2">
-                <Sparkles className="w-4 h-4 text-brand-600" />
-                <span>AI Policy Explainer</span>
-              </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Have questions about exclusions, waiting periods, or mandatory claim documents? Ask our grounded AI assistant.
-              </p>
-              <Link
-                to="/ai-assistant"
-                className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-600 hover:text-brand-700"
-              >
-                Ask policy questions <ChevronRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-          </div>
-        </div>
 
         {/* Modal: Register Child */}
         {registerChildModalOpen && (

@@ -480,6 +480,7 @@ export const SEED_ENTERPRISE_PRODUCTS: InsuranceProduct[] = [
         QUARTERLY: 0.27
       },
       discounts: [
+        { code: 'MERIT_10', name: 'Academic Merit Concession', discountPercent: 10, description: '10% concession for students with verified academic merit' },
         { code: 'LOYALTY_5', name: 'Consecutive Enrollment Discount', discountPercent: 5, description: '5% discount for renewing EduShield families' },
         { code: 'TOP_RANK_12', name: 'NIRF Top 10 Campus Concession', discountPercent: 12, description: '12% discount for premier NIRF Top 10 institutions (IITD, BITS, NITT)' }
       ]

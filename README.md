@@ -22,7 +22,7 @@ Open **`http://localhost:5173`** in your browser.
 ```bash
 npm run test
 ```
-Runs 6 automated test suites with 78 passing unit and integration tests verifying:
+Runs 7 automated test suites with 84 passing unit and integration tests verifying:
 - Genuine Firebase authentication, password reset, and session persistence
 - Role-based route guards and access restrictions
 - Account lifecycle status (`PENDING`, `APPROVED`, `REJECTED`) and administrator-controlled approval workflow
@@ -48,6 +48,15 @@ Runs 6 automated test suites with 78 passing unit and integration tests verifyin
   - Policy cancellation refund calculation: Free-Look (15 days, 100% minus stamp fee) vs Short-Period scale vs 0% post-claim
   - Deterministic policy & product status state transitions
   - Strict RBAC enforcement preventing students & claims officers from policy purchasing or catalog configuration
+- **Premium Parent/Guardian Insurance Experience**:
+  - Recreated after enterprise reference design patterns adapted specifically for higher education protection:
+  - **Image 4 - Education Protection Calculator**: Real-time calculated age badge inside the DOB input (`XX Years` cyan pill), NRI segmented control, mobile input with `(✓) We Don't Spam` badge, 5-bracket segmented income selector (`<5`, `5-7`, `7-10`, `10-20`, `>20`), student beneficiary selection, and berry/magenta `[Calculate Now]` button.
+  - **Image 5 - Progress Tracker & Quote Summary**: 5-step horizontal tracker (`1. Protection Calculated` → `2. Quote Created` → `3. Personal Details` → `4. Payment Page` → `5. Proposal Form`), sticky header summary pill displaying Education Cover, live installment/annual premium, and pink `[Continue]` action.
+  - **Image 3 - Personal Details Modal**: Centered modal with handle bar (`- · -`), gender segmented control with "15% Lesser Premium" female concession badge, academic entrance category with "10% Merit Discount" badge, preferred language selector, 2x2 occupation grid (`Salaried` with 15% discount, `Self-employed`, `Housewife`, `Academic`), education level pills, and prominent `[Proceed]` button.
+  - **Image 2 - Continuity Details Modal**: Centered modal with handle bar and back navigation, breadwinner critical illness check, single-parent marital status helper, direct university registrar tuition escrow selector, and magenta `[Check Coverage]` pill button.
+  - **Image 1 - Policy Customization Studio**: Step header with "Edit Info", Education Cover dropdown with "Recommended" badge, Premium payment term selector with annual savings highlight, cover duration segmented tabs with live prices (`4 Years | ₹ 13,440/yr`, `3 Years`, `2 Years`, `1 Year`), green highlight card for 15-day Free-Look 100% refund guarantee, transparent deterministic premium breakdown, and genuine EduShield trust & stats banner (Total Education Covered, Semester Fees Escrowed, Students Safeguarded, 100% Direct Settlement Ratio).
+  - **Existing Policies & Claims Portfolio**: Card summary showing active policies, insured student profile, premium status, digital policy link, and active claim adjudication status for bound policies.
+  - **Role-Based Isolation**: Strictly active for `role === 'guardian'`, keeping Student, Officer, Registrar, and Administrator portals preserved and untouched.
 
 ### 4. Build for Production
 ```bash

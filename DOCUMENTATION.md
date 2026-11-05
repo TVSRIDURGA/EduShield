@@ -594,7 +594,7 @@ During claim review (`policyEngine.validateClaimAgainstPolicyLimits()`), the sys
 
 ### 12.7 Comprehensive Test Suite Results
 
-The complete automated test suite (`tests/enterprisePolicyAdministration.test.ts` alongside existing suites) passes 78/78 tests:
+The complete automated test suite passes 84/84 tests across 7 test files:
 
 ```text
 ✓ tests/businessRules.test.ts (9 tests)
@@ -603,9 +603,32 @@ The complete automated test suite (`tests/enterprisePolicyAdministration.test.ts
 ✓ tests/components.test.tsx (4 tests)
 ✓ tests/securityAndQuality.test.ts (17 tests)
 ✓ tests/authAndRbac.test.tsx (33 tests)
+✓ tests/parentInsuranceExperience.test.tsx (6 tests)
 
-Test Files: 6 passed (6)
-Tests:      78 passed (78)
+Test Files: 7 passed (7)
+Tests:      84 passed (84)
 Build:      tsc (0 errors) && vite build (success)
 ```
+
+---
+
+## 13. Premium Parent/Guardian Insurance Experience
+
+To provide parents and guardians with an enterprise-grade digital insurance purchase journey, EduShield incorporates a specialized Parent Portal experience adapted from 5 reference insurance interaction patterns, specifically tailored to higher education protection.
+
+### 13.1 Design Reference Mapping & Component Architecture
+
+| Reference | Target Concept | Implemented Component | Key UI Elements Recreated |
+|:---|:---|:---|:---|
+| **Image 4** | Education Protection Calculator | `EducationProtectionCalculator.tsx` | Real-time calculated age badge inside the DOB input (`XX Years` cyan pill), NRI segmented toggle, mobile input with `(✓) We Don't Spam` badge, 5-bracket segmented income selector (`<5`, `5-7`, `7-10`, `10-20`, `>20`), student beneficiary selector, and berry/magenta `[Calculate Now]` button. |
+| **Image 5** | Progress Tracker & Quote Summary | `EducationProtectionCalculator.tsx` & `ParentInsuranceExperience.tsx` | 5-step horizontal tracker (`1. Protection Calculated` $\to$ `2. Quote Created` $\to$ `3. Personal Details` $\to$ `4. Payment Page` $\to$ `5. Proposal Form`), sticky header summary pill displaying Education Cover, installment/annual premium, and pink `[Continue]` action. |
+| **Image 3** | Personal & Academic Details Modal | `PersonalDetailsModal.tsx` | Centered modal with top handle bar (`- · -`), gender segmented control with "15% Lesser Premium" female concession badge, academic entrance category with "10% Merit Discount" badge, preferred language pills, 2x2 occupation grid (`Salaried` with 15% discount, `Self-employed`, `Housewife`, `Academic`), education level pills, and prominent `[Proceed]` button. |
+| **Image 2** | Additional Details / Continuity Modal | `ContinuityDetailsModal.tsx` | Centered modal with dark backdrop, top handle bar, back arrow navigation, segmented `[No] \| [Yes]` controls for breadwinner health/critical illness, single-parent marital status, direct university registrar escrow routing, and prominent magenta `[Check Coverage]` pill button. |
+| **Image 1** | Policy Customization Studio | `PolicyCustomizationStudio.tsx` | Step header with "Edit Info", Education Cover dropdown with "Recommended" badge, Premium payment term selector with annual savings highlight, cover duration segmented tabs with live prices (`4 Years \| ₹ 13,440/yr`, `3 Years`, `2 Years`, `1 Year`), green highlight card for 15-day Free-Look 100% refund guarantee, transparent deterministic premium breakdown, and genuine EduShield trust & stats banner (Total Education Covered, Semester Fees Escrowed, Students Safeguarded, 100% Direct Settlement Ratio). |
+| **General** | Existing Policies & Claims Portfolio | `ExistingPoliciesSummary.tsx` | Card summary displaying active bound policies, covered student details, premium payment status, direct digital policy certificate download link, and active claim adjudication progress. |
+
+### 13.2 Role-Based Tenant Isolation
+In accordance with strict security requirements:
+- The entire new experience is rendered exclusively for authenticated users where `role === 'guardian'`.
+- All other four roles (Student, Claims Officer, University Registrar, Administrator) maintain their dedicated, existing dashboards and workflows without any regressions or interface alterations.
 
